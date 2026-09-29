@@ -89,6 +89,15 @@ animation:rainbow-move 3s linear infinite,wig 1.8s ease-in-out infinite;backgrou
 .md.cosmic .prod{background:rgba(255,255,255,.04);border:2px solid transparent;border-image:linear-gradient(90deg,#ff3b3b,#ffe63b,#5cff5c,#3bc6ff,#a35cff) 1;border-radius:14px}
 .md.cosmic .prod b{color:#fff}.md.cosmic .prod p{color:#b9c2e0}
 .cosmic-hide{display:block;text-align:center;color:#8892b8;font-size:12px;margin-top:16px}.cosmic-hide input{margin-right:5px}
+.counsel-wrap{background:linear-gradient(160deg,#fff8f0,#ffead2);border:1px solid #ffdcb0;border-radius:16px;padding:18px}
+.counsel-intro{text-align:center;color:#8a4b16}
+.counsel-intro svg{width:34px;height:34px;stroke:#c9832f}
+.counsel-msgs{display:flex;flex-direction:column;gap:10px;max-height:420px;overflow-y:auto;padding:6px 4px;margin-bottom:14px}
+.cmsg{max-width:74%;padding:10px 14px;border-radius:16px;font-size:13.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.cmsg.emp{align-self:flex-end;background:#ffb46e;color:#3a2410;border-bottom-right-radius:4px}
+.cmsg.adm{align-self:flex-start;background:#fff;border:1px solid #ffdcb0;color:#5a3a1a;border-bottom-left-radius:4px}
+.cmsg .who{display:block;font-size:10.5px;opacity:.6;margin-bottom:3px}
+.counsel-wrap input{border-color:#ffdcb0}
 @media(max-width:700px){#bd{flex-direction:column}nav{width:auto;display:flex;overflow-x:auto;padding:8px}nav a{white-space:nowrap}main{padding:16px}.side{flex-basis:100%}}
 </style></head><body><div id="app"></div>
 <script>
@@ -102,7 +111,9 @@ const K='baegilmong_intranet_v1';
 function seed(){const U=(id,name,dept,rank,pts)=>({id,pw:'1234',name,dept,team:'',alias:'',rank,pts,role:'user',off:0,reason:'',buys:{},cbuys:{}});
 const pr=(id,n,d,p)=>({id,n,d,p,ord:id,lim:0,sold:0,show:1});
 return{co:'백일몽 주식회사',mark:'관리자',
-menus:[['notices','공지사항'],['profile','개인 프로필'],['shop','복지몰'],['points','포인트'],['messenger','메신저'],['reports','보고서'],['admin','관리자']].map(m=>({k:m[0],n:m[1],v:1})),
+menus:[['notices','공지사항'],['profile','개인 프로필'],['shop','복지몰'],['points','포인트'],['messenger','메신저'],['counsel','상담'],['reports','보고서'],['admin','관리자']].map(m=>({k:m[0],n:m[1],v:1})),
+counselIntro:'지친 하루였나요? 편하게 이야기를 들려주세요.\n상담은 하루에 한 번만 시작할 수 있습니다.',
+counselName:'상담사',
 users:[{id:'admin',pw:'admin1234',name:'관리자',dept:'경영지원본부',team:'',alias:'',rank:'관리자',pts:0,role:'main',off:0,reason:'',buys:{},cbuys:{}},
 U('sa0142','임도현','총무부','사원',200),U('sa0207','윤세아','이상현상대응1팀','대리',3000),U('sa0311','박정후','시설관리과','주임',250),U('sa0388','강미르','총무부','사원',5600),U('sa0402','한겨울','이상현상대응2팀','사원',1800)],
 notices:[{id:1,t:'야간 근무 시 3층 이동 경로 변경 안내',b:NB[1],imp:1,d:'2026-07-28T09:00'},{id:2,t:'사내 이상현상 보고 절차 개정 공고',b:NB[2],imp:0,d:'2026-07-25T14:30'},{id:3,t:'하계 휴가 신청 기간 안내',b:NB[3],imp:0,d:'2026-07-30T10:00'}],
@@ -111,6 +122,7 @@ prods:[pr(1,'심야 근무용 휴대 손전등','야간 순찰 및 정전 대비
 cprods:[{id:1,n:'차원 절단 나이프',d:'경계가 흐려진 공간을 가른다. 사용 후 손잡이가 서늘해진다.',p:5000},{id:2,n:'정신 오염 방지 마스크',d:'장시간 착용 시 두통을 동반하나 오염도 상승을 늦춘다.',p:3200},{id:3,n:'무중력 부적',d:'낙하 중 한 차례, 몸이 깃털처럼 가벼워진다. 효과는 예측 불가.',p:4100},{id:4,n:'이계 통신기',d:'신호가 닿지 않는 곳에서도 무언가와 연결된다. 응답은 권장하지 않는다.',p:6000},{id:5,n:'시간 역행 모래시계',d:'뒤집으면 지난 10분이 되돌아온다. 하루 한 번만 작동한다.',p:8800}],
 log:[],
 msgs:SM(),
+counsel:[],
 reports:[{id:1,t:'지하 1층 누수 신고',who:'sa0311',at:'2026-07-27T08:30',place:RB[1].place,body:RB[1].body,st:'반려',d:'2026-09-27T20:38',seenBy:['sa0311','admin']},
 {id:2,t:'야간 순찰 중 시야 확보 이상 보고',who:'sa0207',at:'2026-07-28T02:10',place:RB[2].place,body:RB[2].body,st:'승인',d:'2026-09-27T20:38',seenBy:['sa0207','admin']},
 {id:3,t:'3층 동측 복도 이상 소음 보고',who:'sa0142',at:'2026-07-29T23:40',place:RB[3].place,body:RB[3].body,st:'승인',d:'2026-09-27T20:38',seenBy:['sa0142','admin']}]}}
@@ -124,6 +136,11 @@ function migrate(d){let ch=false;
 (d.reports||[]).forEach(r=>{if(RB[r.id]&&(!r.place||!r.body)){r.place=r.place||RB[r.id].place;r.body=r.body||RB[r.id].body;ch=true}});
 if(!d.msgs||!d.msgs.length){d.msgs=SM();ch=true}
 if(!d.cprods||!d.cprods.length){d.cprods=[{id:1,n:'차원 절단 나이프',d:'경계가 흐려진 공간을 가른다. 사용 후 손잡이가 서늘해진다.',p:5000},{id:2,n:'정신 오염 방지 마스크',d:'장시간 착용 시 두통을 동반하나 오염도 상승을 늦춘다.',p:3200},{id:3,n:'무중력 부적',d:'낙하 중 한 차례, 몸이 깃털처럼 가벼워진다. 효과는 예측 불가.',p:4100},{id:4,n:'이계 통신기',d:'신호가 닿지 않는 곳에서도 무언가와 연결된다. 응답은 권장하지 않는다.',p:6000},{id:5,n:'시간 역행 모래시계',d:'뒤집으면 지난 10분이 되돌아온다. 하루 한 번만 작동한다.',p:8800}];ch=true}
+if(!d.counsel)d.counsel=[],ch=true;
+if(!d.menus.find(m=>m.k==='counsel')){const i=d.menus.findIndex(m=>m.k==='reports');d.menus.splice(i<0?d.menus.length:i,0,{k:'counsel',n:'상담',v:1});ch=true}
+(()=>{const m=d.menus.find(x=>x.k==='counsel');if(m&&m.n==='여우상담실'){m.n='상담';ch=true}})();
+if(d.counselIntro===undefined){d.counselIntro='지친 하루였나요? 편하게 이야기를 들려주세요.\n상담은 하루에 한 번만 시작할 수 있습니다.';ch=true}
+if(!d.counselName){d.counselName='상담사';ch=true}
 return ch}
 let D=null,DB=null,SYNC='connecting';
 const firebaseConfig={apiKey:"AIzaSyCDFMpi_y2U-Sf_wwAG1aqD4WPfOSSEAyk",authDomain:"gsgw-82ac2.firebaseapp.com",projectId:"gsgw-82ac2",storageBucket:"gsgw-82ac2.firebasestorage.app",messagingSenderId:"542740660762",appId:"1:542740660762:web:15ae627fd53be497f047a3"};
@@ -142,7 +159,9 @@ try{
 }catch(x){DB=null;try{D=JSON.parse(localStorage.getItem(K))}catch(y){}D=D||seed();if(migrate(D))save();SYNC='local'}
 R();
 }
-const S={uid:null,pg:'notices',tab:''};
+const S={uid:null,pg:'notices',tab:'',counselOpen:null};
+const today=()=>now().slice(0,10);
+let counselDraft='';
 const U=id=>D.users.find(u=>u.id===id),me=()=>U(S.uid),adm=()=>{const m=me();return !!m&&m.role!=='user'},nm=id=>U(id)?.name||id;
 const need=()=>adm()||(alert('권한이 없습니다.'),false);
 const card=(t,b)=>`<div class="card"><h3>${t}</h3>${b}</div>`;
@@ -161,18 +180,20 @@ shop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1
 points:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 15.5V9h2.4a2.3 2.3 0 0 1 0 4.6H9.5M9.5 12h3"/></svg>',
 messenger:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H8l-4 4z"/></svg>',
 reports:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h8l4 4v14H7z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg>',
-admin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.2-1.6l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.8-1.6L13.3 2h-2.6l-.4 2.8a7 7 0 0 0-2.8 1.6l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .5.1 1 .2 1.6l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2.8 1.6l.4 2.8h2.6l.4-2.8a7 7 0 0 0 2.8-1.6l2.3.9 2-3.4-2-1.5c.1-.6.2-1.1.2-1.6z"/></svg>'};
+admin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.2-1.6l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.8-1.6L13.3 2h-2.6l-.4 2.8a7 7 0 0 0-2.8 1.6l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .5.1 1 .2 1.6l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2.8 1.6l.4 2.8h2.6l.4-2.8a7 7 0 0 0 2.8-1.6l2.3.9 2-3.4-2-1.5c.1-.6.2-1.1.2-1.6z"/></svg>',
+counsel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 15H5l-2 3V6a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H9z"/><path d="M14 9h4a1 1 0 0 1 1 1v6l2 3h-3l-2-2h-4"/></svg>'};
 const LOGO='<svg viewBox="0 0 24 24" width="25" height="25" style="flex:none"><path d="M12 2.3 21.7 12 12 21.7 2.3 12Z" fill="none" stroke="#fff" stroke-width="1.3" opacity=".9"/><path d="M12 5.4 18.6 12 12 18.6 5.4 12Z" fill="none" stroke="#fff" stroke-width="1" opacity=".55"/><rect x="9.3" y="8.2" width="5.4" height="7.6" rx="0.6" fill="#fff"/><line x1="10.5" y1="10.6" x2="13.5" y2="10.6" stroke="#14213e" stroke-width="0.9"/><line x1="10.5" y1="13" x2="13.5" y2="13" stroke="#14213e" stroke-width="0.9"/></svg>';
 const badge=st=>`<span class="badge ${st==='승인'?'b-ok':st==='반려'?'b-no':'b-wt'}">${e(st)}</span>`;
 const ctag=o=>o.corrupted?'<span class="corrupt">[오염] </span>':'';
 function navDot(k,uid){if(k==='notices')return D.notices.some(n=>!seen(n.seenBy,uid));
 if(k==='messenger')return D.msgs.some(m=>readIn(m,uid)&&!(m.readBy||[]).includes(uid));
 if(k==='reports'){const A=adm();return D.reports.some(r=>(A||r.who===uid)&&!seen(r.seenBy,uid))}
+if(k==='counsel'){if(adm())return D.counsel.some(c=>c.unreadAdm);return D.counsel.some(c=>c.uid===uid&&c.unreadEmp)}
 return false}
 const TABS={shop:[['view','상품 보기'],['manage','상품 관리',1],['sn','공지 작성',1]],messenger:[['in','받은 쪽지함'],['out','보낸 쪽지함'],['new','새 쪽지']],reports:[['list','보고서 목록'],['new','보고서 제출']],admin:[['users','사원 관리'],['an','공지사항 작성'],['set','사이트 설정']]};
 function tabsH(){const l=(TABS[S.pg]||[]).filter(t=>!t[2]||adm());if(!l.length)return'';if(!l.some(t=>t[0]===S.tab))S.tab=l[0][0];
 return`<div class="tabs">${l.map(t=>`<button class="${t[0]===S.tab?'on':''}" onclick="S.tab='${t[0]}';R()">${t[1]}</button>`).join('')}</div>`}
-const go=p=>{S.pg=p;S.tab='';R()};
+const go=p=>{S.pg=p;S.tab='';S.counselOpen=null;R()};
 function login(){const u=U(v('lid'));
 if(!u||u.pw!==$('#lpw').value){$('#lerr').textContent='아이디 또는 비밀번호가 올바르지 않습니다.';return false}
 if(u.off){$('#lerr').textContent=u.reason;return false}
@@ -181,7 +202,9 @@ const logout=()=>{S.uid=null;R()};
 function R(){if(!D)return;const m=me();
 if(!m){app.innerHTML=`<form id="lg" onsubmit="return login()"><small class="mu">사내 인트라넷</small><h2>${e(D.co)}</h2>${fld('lid','아이디','text','autocomplete="username"')}${fld('lpw','비밀번호','password','autocomplete="current-password"')}<button class="pri" style="width:100%">출근</button><div id="lerr"></div></form>`;return}
 const ms=D.menus.filter(x=>x.v&&(x.k!=='admin'||adm()));if(!ms.some(x=>x.k===S.pg))S.pg=ms[0].k;
-app.innerHTML=`<header><span style="gap:14px"><span onclick="logoClick()" style="cursor:default;display:flex">${LOGO}</span><b>${e(D.co)}</b><span class="clk" id="clk"></span></span><span><span class="led ${SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':''}" id="led"></span>${e(m.name)}${adm()?MK():''} · 보유 포인트 <span class="pts">${m.pts} P</span><button class="out" onclick="logout()">퇴근</button></span></header><div id="bd"><nav>${ms.map(x=>`<a class="${x.k===S.pg?'on':''}" onclick="go('${x.k}')">${ICON[x.k]||''}${e(x.n)}${navDot(x.k,S.uid)?'<span class="dot"></span>':''}</a>`).join('')}<div class="syn" id="syncbadge">${SYNC==='local'?'서버 연결 실패 — 이 기기에만 저장됩니다':''}</div></nav><main>${tabsH()}${P[S.pg]()}</main></div>`;tick()}
+app.innerHTML=`<header><span style="gap:14px"><span onclick="logoClick()" style="cursor:default;display:flex">${LOGO}</span><b>${e(D.co)}</b><span class="clk" id="clk"></span></span><span><span class="led ${SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':''}" id="led"></span>${e(m.name)}${adm()?MK():''} · 보유 포인트 <span class="pts">${m.pts} P</span><button class="out" onclick="logout()">퇴근</button></span></header><div id="bd"><nav>${ms.map(x=>`<a class="${x.k===S.pg?'on':''}" onclick="go('${x.k}')">${ICON[x.k]||''}${e(x.n)}${navDot(x.k,S.uid)?'<span class="dot"></span>':''}</a>`).join('')}<div class="syn" id="syncbadge">${SYNC==='local'?'서버 연결 실패 — 이 기기에만 저장됩니다':''}</div></nav><main>${tabsH()}${P[S.pg]()}</main></div>`;tick();
+const ci=$('#cinput');if(ci)ci.value=counselDraft;
+const cm=$('#cmsgs');if(cm)cm.scrollTop=cm.scrollHeight}
 let clkT;function tick(){clearInterval(clkT);const d=$('#clk');if(!d)return;const f=()=>{const n=new Date();d.textContent=`${n.getFullYear()}.${p2(n.getMonth()+1)}.${p2(n.getDate())} ${p2(n.getHours())}:${p2(n.getMinutes())}:${p2(n.getSeconds())}`};f();clkT=setInterval(f,1000)}
 const P={};
 P.notices=()=>{const A=adm(),uid=S.uid;const ns=[...D.notices].sort((a,b)=>b.d.localeCompare(a.d));const latest=ns[0];
@@ -279,13 +302,43 @@ modal(r.t,`작성자: ${e(nm(r.who))} · 발생 일시: ${fmt(r.at)}${r.place?' 
 function addR(){const t=v('rt'),b=v('rb');if(!t||!b)return alert('제목과 내용은 필수입니다.');D.reports.push({id:nx(D.reports),t,who:S.uid,at:v('ra'),place:v('rp'),body:b,st:'대기',d:now(),seenBy:[S.uid]});save();S.tab='list';R()}
 function stR(id,st){if(!need())return;const r=D.reports.find(x=>x.id===id);r.st=st;r.seenBy=[S.uid];save();R()}
 function delR(id){if(!need()||!confirm('삭제할까요?'))return;D.reports=D.reports.filter(x=>x.id!==id);save();R()}
+P.counsel=()=>{if(adm())return counselAdminList();return counselMine()};
+const counselLabel=()=>D.menus.find(x=>x.k==='counsel')?.n||'상담';
+function counselMine(){const td=today();
+const mine=D.counsel.filter(c=>c.uid===S.uid).sort((a,b)=>b.date.localeCompare(a.date));
+const cur=mine.find(c=>c.date===td);
+let box;
+if(cur){box=counselChatBox(cur,false)}
+else{box=`<div class="counsel-intro">${ICON.counsel}<div style="white-space:pre-wrap;margin-top:8px">${e(D.counselIntro)}</div><div style="margin-top:14px"><button class="pri" onclick="startCounsel()">상담 시작하기</button></div></div>`}
+const past=mine.filter(c=>c.date!==td);
+const pastList=past.length?card('지난 상담 기록',tbl(['날짜','대화 수'],past.map(c=>`<tr><td>${c.date}</td><td>${c.msgs.length}건</td></tr>`))):'';
+return card(e(counselLabel()),box)+pastList}
+function counselAdminList(){const td=today();
+if(S.tab==='chat'&&S.counselOpen){const c=D.counsel.find(x=>x.id===S.counselOpen);
+if(c)return card(`${e(nm(c.uid))}님과의 상담 (${c.date})`,counselChatBox(c,true)+`<button class="btn" style="margin-top:12px" onclick="S.counselOpen=null;S.tab='list';R()">목록으로</button>`)}
+const sorted=[...D.counsel].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+const rows=sorted.map(c=>`<tr><td class="l">${c.unreadAdm?'<span class="udot"></span>':''}${e(nm(c.uid))}</td><td>${c.date}</td><td>${c.msgs.length}건</td><td><button class="btn" onclick="S.counselOpen=${c.id};S.tab='chat';R()">${c.date===td?'입장':'열람'}</button></td></tr>`);
+return card(e(counselLabel())+' · 상담 목록',sorted.length?tbl(['사원','날짜','대화 수','관리'],rows):empty('접수된 상담이 없습니다.'))}
+function counselChatBox(c,isAdmin){if(isAdmin){if(c.unreadAdm){c.unreadAdm=0;save()}}else{if(c.unreadEmp){c.unreadEmp=0;save()}}
+const msgsHtml=c.msgs.length?c.msgs.map(m=>`<div class="cmsg ${m.who}"><span class="who">${m.who==='emp'?e(nm(c.uid)):e(D.counselName)}</span>${e(m.b)}</div>`).join(''):'<p class="mu" style="text-align:center">아직 대화가 없습니다. 편하게 이야기를 건네보세요.</p>';
+return `<div class="counsel-wrap"><div class="counsel-msgs" id="cmsgs">${msgsHtml}</div><div style="display:flex;gap:8px"><input id="cinput" style="flex:1" placeholder="이야기를 들려주세요..." oninput="counselDraft=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();sendCounsel(${c.id},${isAdmin})}"><button class="btn" style="flex:none;white-space:nowrap" onclick="sendCounsel(${c.id},${isAdmin})">전송</button></div></div>`}
+function startCounsel(){const td=today();if(D.counsel.some(c=>c.uid===S.uid&&c.date===td))return;
+D.counsel.push({id:nx(D.counsel),uid:S.uid,date:td,msgs:[],unreadEmp:0,unreadAdm:1});save();R()}
+function sendCounsel(id,isAdmin){const c=D.counsel.find(x=>x.id===id);if(!c)return;
+const val=($('#cinput')?.value||'').trim();if(!val)return;
+c.msgs.push({who:isAdmin?'adm':'emp',b:val,d:now()});
+if(isAdmin)c.unreadEmp=1;else c.unreadAdm=1;
+counselDraft='';save();R()}
 P.admin=()=>{if(!adm())return'';const t=S.tab;
 if(t==='an')return card('공지사항 작성',`<div style="max-width:640px">${fld('nt','제목 (필수)')}<label>본문 (필수)</label><textarea id="nb"></textarea><label class="ck"><input type="checkbox" id="ni">중요 공지로 표시</label><label class="ck"><input type="checkbox" id="nc">오염된 공지로 표시</label>${fld('ncov','오염 안내 문구 (선택, 비우면 기본 문구 사용)')}<button class="pri" onclick="addN()">공지 등록</button></div>`);
-if(t==='set')return card('사이트 설정',`<div style="max-width:640px">${fld('sco','회사명','text',`value="${e(D.co)}"`)}${fld('smk','관리자 마크 라벨','text',`value="${e(D.mark)}"`)}<h4>메뉴 설정</h4><table><tr><th>메뉴</th><th>이름</th><th>표시</th></tr>${D.menus.map((m,i)=>`<tr><td>${m.k}</td><td><input id="mn${i}" value="${e(m.n)}"></td><td><input type="checkbox" id="mv${i}" ${m.v?'checked':''} ${m.k==='admin'?'disabled':''}></td></tr>`).join('')}</table><button class="pri" onclick="saveSet()">저장</button></div>`);
+if(t==='set')return card('사이트 설정',`<div style="max-width:640px">${fld('sco','회사명','text',`value="${e(D.co)}"`)}${fld('smk','관리자 마크 라벨','text',`value="${e(D.mark)}"`)}<h4>메뉴 설정</h4><table><tr><th>메뉴</th><th>이름</th><th>표시</th></tr>${D.menus.map((m,i)=>`<tr><td>${m.k}</td><td><input id="mn${i}" value="${e(m.n)}"></td><td><input type="checkbox" id="mv${i}" ${m.v?'checked':''} ${m.k==='admin'?'disabled':''}></td></tr>`).join('')}</table><h4>상담 탭 설정</h4><label>안내 문구 (상담 시작 전 표시)</label><textarea id="sci" style="min-height:90px">${e(D.counselIntro)}</textarea>${fld('scn','상담사 표시 이름','text',`value="${e(D.counselName)}"`)}<button class="pri" onclick="saveSet()">저장</button></div>`);
 const rows=D.users.map(u=>{const main=u.role==='main';return`<tr><td>${e(u.id)}</td><td>${e(u.name)}${u.role!=='user'?MK():''}</td><td>${e(u.dept)}</td><td>${e(u.rank)}</td><td>${u.pts} P</td><td>${main?'메인 관리자':u.role==='admin'?'관리자':'사원'}</td><td class="${u.off?'rd':''}">${u.off?'비활성':'정상'}</td><td class="nw"><button class="btn" onclick="editU('${u.id}')">수정</button> <button class="btn" onclick="togU('${u.id}')">${u.off?'활성화':'비활성'}</button> ${main?'':`<button class="btn" onclick="roleU('${u.id}')">${u.role==='admin'?'관리자 해임':'관리자 임명'}</button> `}<button class="btn dg" onclick="delU('${u.id}')">삭제</button></td></tr>`});
 return`<div class="two">${card('사원 목록',tbl(['아이디','이름','부서','직급','포인트','권한','상태','관리'],rows))}<div class="card side"><h3>계정 생성</h3>${fld('cid','아이디 (필수)')}${fld('cpw','비밀번호 (필수)','password')}${fld('cnm','이름 (필수)')}${fld('cdp','부서')}${fld('ctm','소속 팀')}${fld('cal','가면(호칭)')}${fld('crk','직급')}<button class="pri" onclick="addU()">계정 생성</button></div></div>`};
 function addN(){if(!need())return;const t=v('nt'),b=v('nb');if(!t||!b)return alert('제목과 본문은 필수입니다.');D.notices.push({id:nx(D.notices),t,b,imp:$('#ni').checked?1:0,corrupted:$('#nc').checked?1:0,cover:v('ncov'),d:now(),seenBy:[S.uid]});save();S.pg='notices';R()}
-function saveSet(){if(!need())return;D.co=v('sco')||D.co;D.mark=v('smk')||D.mark;D.menus.forEach((m,i)=>{m.n=v('mn'+i)||m.n;m.v=m.k==='admin'||$('#mv'+i).checked?1:0});save();R();alert('저장되었습니다.')}
+function saveSet(){if(!need())return;D.co=v('sco')||D.co;D.mark=v('smk')||D.mark;D.menus.forEach((m,i)=>{m.n=v('mn'+i)||m.n;m.v=m.k==='admin'||$('#mv'+i).checked?1:0});
+if($('#sci'))D.counselIntro=$('#sci').value.trim()||D.counselIntro;
+if($('#scn'))D.counselName=v('scn')||D.counselName;
+save();R();alert('저장되었습니다.')}
 function addU(){if(!need())return;const id=v('cid'),pw=$('#cpw').value,n=v('cnm');
 if(!id||!pw||!n)return alert('아이디, 비밀번호, 이름은 필수입니다.');if(!/^[A-Za-z0-9_]+$/.test(id))return alert('아이디는 영문, 숫자, 밑줄만 사용할 수 있습니다.');if(U(id))return alert('이미 사용 중인 아이디입니다.');
 D.users.push({id,pw,name:n,dept:v('cdp'),team:v('ctm'),alias:v('cal'),rank:v('crk'),pts:0,role:'user',off:0,reason:'',buys:{},cbuys:{}});save();R()}
