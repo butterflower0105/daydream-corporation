@@ -101,6 +101,19 @@ animation:rainbow-move 3s linear infinite,wig 1.8s ease-in-out infinite;backgrou
 .ccolor-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:10px 0}
 .ccolor-row label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--mu);margin:0}
 .ccolor-row input[type=color]{width:44px;height:32px;padding:2px;border-radius:8px;cursor:pointer}
+.feed{display:flex;flex-direction:column;gap:14px}
+.fpost{background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:16px}
+.fpost-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.favatar{width:36px;height:36px;border-radius:50%;background:var(--ac);color:var(--nv2);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none;font-size:14px}
+.fname{font-weight:600;font-size:13.5px}
+.fdate{color:var(--mu);font-size:11.5px}
+.fpost-title{font-weight:700;margin-bottom:4px;cursor:pointer}
+.fpost-body{white-space:pre-wrap;line-height:1.55;cursor:pointer;color:var(--tx)}
+.fpost-img{margin-top:10px;width:100%;max-height:520px;object-fit:cover;border-radius:12px;display:block;cursor:pointer;background:var(--ac)}
+.fpost-actions{display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--ln);padding-top:10px}
+.flike,.fcmt{background:none;border:0;cursor:pointer;color:var(--mu);font-size:13px;display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:8px;font:inherit}
+.flike:hover,.fcmt:hover{background:var(--ac)}
+.flike.on{color:var(--rd)}
 @media(max-width:700px){#bd{flex-direction:column}nav{width:auto;display:flex;overflow-x:auto;padding:8px}nav a{white-space:nowrap}main{padding:16px}.side{flex-basis:100%}}
 </style></head><body><div id="app"></div>
 <script>
@@ -118,7 +131,7 @@ menus:[['notices','공지사항'],['profile','개인 프로필'],['shop','복지
 counselIntro:'지친 하루였나요? 편하게 이야기를 들려주세요.\n상담은 하루에 한 번만 시작할 수 있습니다.',
 counselName:'상담사',
 counselColors:{bg1:'#fff8f0',bg2:'#ffead2',bd:'#ffdcb0',acc:'#c9832f',txt:'#8a4b16',emp:'#ffb46e',empt:'#3a2410',adm:'#ffffff',admt:'#5a3a1a'},
-boards:[{id:1,n:'자유게시판'}],boardWriteAll:0,posts:[],
+boards:[{id:1,n:'자유게시판'}],boardWriteAll:0,boardAnon:0,posts:[],
 users:[{id:'admin',pw:'admin1234',name:'관리자',dept:'경영지원본부',team:'',alias:'',rank:'관리자',pts:0,role:'main',off:0,reason:'',buys:{},cbuys:{}},
 U('sa0142','임도현','총무부','사원',200),U('sa0207','윤세아','이상현상대응1팀','대리',3000),U('sa0311','박정후','시설관리과','주임',250),U('sa0388','강미르','총무부','사원',5600),U('sa0402','한겨울','이상현상대응2팀','사원',1800)],
 notices:[{id:1,t:'야간 근무 시 3층 이동 경로 변경 안내',b:NB[1],imp:1,d:'2026-07-28T09:00'},{id:2,t:'사내 이상현상 보고 절차 개정 공고',b:NB[2],imp:0,d:'2026-07-25T14:30'},{id:3,t:'하계 휴가 신청 기간 안내',b:NB[3],imp:0,d:'2026-07-30T10:00'}],
@@ -150,7 +163,8 @@ if(!d.counselColors){d.counselColors={bg1:'#fff8f0',bg2:'#ffead2',bd:'#ffdcb0',a
 if(!d.boards||!d.boards.length){d.boards=[{id:1,n:'자유게시판'}];ch=true}
 if(d.boardWriteAll===undefined){d.boardWriteAll=0;ch=true}
 if(!d.posts){d.posts=[];ch=true}
-(d.posts||[]).forEach(p=>{if(!p.comments){p.comments=[];ch=true}});
+if(d.boardAnon===undefined){d.boardAnon=0;ch=true}
+(d.posts||[]).forEach(p=>{if(!p.comments){p.comments=[];ch=true}if(!p.likes){p.likes=[];ch=true}if(p.img===undefined){p.img=null;ch=true}});
 if(!d.menus.find(m=>m.k==='board')){const i=d.menus.findIndex(m=>m.k==='counsel');d.menus.splice(i<0?d.menus.length:i,0,{k:'board',n:'게시판',v:1});ch=true}
 return ch}
 let D=null,DB=null,SYNC='connecting';
@@ -173,6 +187,24 @@ R();
 const S={uid:null,pg:'notices',tab:'',counselOpen:null,brd:null,postOpen:null,editPost:null};
 const today=()=>now().slice(0,10);
 let counselDraft='';
+let postImgDraft=null;
+function readImageCompressed(file,maxW=800,maxH=800,quality=0.7){return new Promise((resolve,reject)=>{
+const reader=new FileReader();
+reader.onload=ev=>{const img=new Image();
+img.onload=()=>{let w=img.width,h=img.height;
+if(w>maxW||h>maxH){const r=Math.min(maxW/w,maxH/h);w=Math.round(w*r);h=Math.round(h*r)}
+const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+cv.getContext('2d').drawImage(img,0,0,w,h);
+resolve(cv.toDataURL('image/jpeg',quality))};
+img.onerror=reject;img.src=ev.target.result};
+reader.onerror=reject;reader.readAsDataURL(file)})}
+async function handlePostImg(ev){const f=ev.target.files[0];if(!f)return;
+if(!f.type.startsWith('image/'))return alert('이미지 파일만 첨부할 수 있습니다.');
+try{postImgDraft=await readImageCompressed(f);const pv=$('#pf_imgprev');if(pv){pv.src=postImgDraft;pv.style.display='block'}
+const rb=$('#pf_imgrm');if(rb)rb.style.display='inline-block'}
+catch(x){alert('이미지를 처리하지 못했습니다.')}}
+function removePostImg(){postImgDraft=null;const pv=$('#pf_imgprev');if(pv){pv.src='';pv.style.display='none'}
+const inp=$('#pf_img');if(inp)inp.value='';const rb=$('#pf_imgrm');if(rb)rb.style.display='none'}
 const U=id=>D.users.find(u=>u.id===id),me=()=>U(S.uid),adm=()=>{const m=me();return !!m&&m.role!=='user'},nm=id=>U(id)?.name||id;
 const need=()=>adm()||(alert('권한이 없습니다.'),false);
 const card=(t,b)=>`<div class="card"><h3>${t}</h3>${b}</div>`;
@@ -203,7 +235,7 @@ if(k==='reports'){const A=adm();return D.reports.some(r=>(A||r.who===uid)&&!seen
 if(k==='counsel'){if(adm())return D.counsel.some(c=>c.unreadAdm);return D.counsel.some(c=>c.uid===uid&&c.unreadEmp)}
 if(k==='board')return D.posts.some(p=>!seen(p.seenBy,uid));
 return false}
-const TABS={shop:[['view','상품 보기'],['manage','상품 관리',1],['sn','공지 작성',1]],messenger:[['in','받은 쪽지함'],['out','보낸 쪽지함'],['new','새 쪽지']],reports:[['list','보고서 목록'],['new','보고서 제출']],admin:[['users','사원 관리'],['an','공지사항 작성'],['bd','게시판 관리'],['set','사이트 설정']]};
+const TABS={shop:[['view','상품 보기'],['manage','상품 관리',1],['sn','공지 작성',1]],messenger:[['in','받은 쪽지함'],['out','보낸 쪽지함'],['new','새 쪽지']],reports:[['list','보고서 목록'],['new','보고서 제출']],admin:[['users','사원 관리'],['an','공지사항 작성'],['bd','게시판 설정'],['set','사이트 설정']]};
 function tabsH(){const l=(TABS[S.pg]||[]).filter(t=>!t[2]||adm());if(!l.length)return'';if(!l.some(t=>t[0]===S.tab))S.tab=l[0][0];
 return`<div class="tabs">${l.map(t=>`<button class="${t[0]===S.tab?'on':''}" onclick="S.tab='${t[0]}';R()">${t[1]}</button>`).join('')}</div>`}
 const go=p=>{S.pg=p;S.tab='';S.counselOpen=null;S.postOpen=null;S.editPost=null;R()};
@@ -344,31 +376,42 @@ c.msgs.push({who:isAdmin?'adm':'emp',b:val,d:now()});
 if(isAdmin)c.unreadEmp=1;else c.unreadAdm=1;
 counselDraft='';save();R()}
 const bdName=id=>D.boards.find(b=>b.id===id)?.n||'게시판';
+const authorLabel=uid=>{const real=e(nm(uid));if(!D.boardAnon)return real;return adm()?`익명 (${real})`:'익명'};
+const authorInitial=uid=>(D.boardAnon&&!adm())?'익':(nm(uid)||'?').charAt(0);
 P.board=()=>{if(!D.boards.length)return card('게시판',empty('등록된 게시판이 없습니다.')+(adm()?empty('게시판은 관리자 탭에서 추가할 수 있습니다.'):''));
 if(!S.brd||!D.boards.find(b=>b.id===S.brd))S.brd=D.boards[0].id;
 const boardNav=D.boards.length>1?`<div class="tabs">${D.boards.map(b=>`<button class="${b.id===S.brd?'on':''}" onclick="S.brd=${b.id};S.postOpen=null;S.tab='';R()">${e(b.n)}</button>`).join('')}</div>`:'';
 if(S.tab==='new')return boardNav+postForm(S.brd,S.editPost);
 if(S.postOpen){const p=D.posts.find(x=>x.id===S.postOpen);if(p)return boardNav+postDetail(p)}
 return boardNav+postList(S.brd)};
-function postList(bid){const uid=S.uid,canWrite=!!D.boardWriteAll||adm();
+function newPostClick(){S.tab='new';S.editPost=null;postImgDraft=null;R()}
+function editPostClick(id){const p=D.posts.find(x=>x.id===id);S.tab='new';S.editPost=id;postImgDraft=p?p.img||null:null;R()}
+function feedCard(p){const liked=(p.likes||[]).includes(S.uid);
+return `<div class="fpost"><div class="fpost-head"><div class="favatar">${e(authorInitial(p.uid))}</div><div><div class="fname">${authorLabel(p.uid)}</div><div class="fdate">${fmt(p.d)}${p.edited?' · 수정됨':''}</div></div></div>
+<div class="fpost-title" onclick="openPost(${p.id})">${e(p.title)}${!seen(p.seenBy,S.uid)?' <span class="udot"></span>':''}</div>
+<div class="fpost-body" onclick="openPost(${p.id})">${e(p.body)}</div>
+${p.img?`<img class="fpost-img" src="${p.img}" onclick="openPost(${p.id})">`:''}
+<div class="fpost-actions"><button class="flike ${liked?'on':''}" onclick="toggleLike(${p.id})">${liked?'❤':'🤍'} ${(p.likes||[]).length||''}</button><button class="fcmt" onclick="openPost(${p.id})">💬 ${(p.comments||[]).length||''}</button></div></div>`}
+function postList(bid){const canWrite=!!D.boardWriteAll||adm();
 const ps=D.posts.filter(p=>p.boardId===bid).sort((a,b)=>b.d.localeCompare(a.d));
-const writeBtn=canWrite?`<button class="btn" onclick="S.tab='new';S.editPost=null;R()">글쓰기</button>`:'';
-const rows=ps.map(p=>`<tr><td class="l">${seen(p.seenBy,uid)?'':'<span class="udot"></span>'}<a onclick="openPost(${p.id})">${e(p.title)}</a>${p.edited?' <span class="mu" style="font-size:11px">(수정됨)</span>':''}</td><td>${e(nm(p.uid))}</td><td>${fmt(p.d)}</td><td>${p.comments.length}</td></tr>`);
-return card(e(bdName(bid)),(ps.length?tbl(['제목','작성자','작성일','댓글'],rows):empty('등록된 글이 없습니다.'))+`<div style="margin-top:12px">${writeBtn}</div>`)}
+const writeBtn=canWrite?`<button class="pri" onclick="newPostClick()">글쓰기</button>`:'';
+const feed=ps.length?`<div class="feed">${ps.map(feedCard).join('')}</div>`:empty('등록된 글이 없습니다.');
+return card(e(bdName(bid)),`<div style="margin-bottom:14px">${writeBtn}</div>${feed}`)}
 function openPost(id){const p=D.posts.find(x=>x.id===id);markSeen(p,S.uid);save();S.postOpen=id;R()}
 function postForm(bid,editId){const p=editId?D.posts.find(x=>x.id===editId):null;
-return card(p?'게시글 수정':'새 글 작성',`<div style="max-width:640px">${fld('pf_t','제목 (필수)','text',p?`value="${e(p.title)}"`:'')}<label>내용 (필수)</label><textarea id="pf_b">${p?e(p.body):''}</textarea><button class="pri" onclick="savePost(${bid},${editId||'null'})">${p?'수정 완료':'등록'}</button> <button class="btn" onclick="S.tab='';R()">취소</button></div>`)}
+return card(p?'게시글 수정':'새 글 작성',`<div style="max-width:560px">${fld('pf_t','제목 (필수)','text',p?`value="${e(p.title)}"`:'')}<label>내용 (필수)</label><textarea id="pf_b">${p?e(p.body):''}</textarea><label>사진 첨부 (선택)</label><input type="file" id="pf_img" accept="image/*" onchange="handlePostImg(event)"><img id="pf_imgprev" src="${postImgDraft||''}" style="max-width:100%;border-radius:10px;margin-top:8px;display:${postImgDraft?'block':'none'}"><button type="button" id="pf_imgrm" class="btn" style="margin-top:6px;display:${postImgDraft?'inline-block':'none'}" onclick="removePostImg()">사진 제거</button><div style="margin-top:14px"><button class="pri" onclick="savePost(${bid},${editId||'null'})">${p?'수정 완료':'등록'}</button> <button class="btn" onclick="S.tab='';R()">취소</button></div></div>`)}
 function savePost(bid,editId){const t=v('pf_t'),b=$('#pf_b').value.trim();if(!t||!b)return alert('제목과 내용은 필수입니다.');
 if(editId){const p=D.posts.find(x=>x.id===editId);if(!p)return;if(!(adm()||p.uid===S.uid))return alert('권한이 없습니다.');
-p.title=t;p.body=b;p.edited=1;p.editedAt=now();
+p.title=t;p.body=b;p.img=postImgDraft||null;p.edited=1;p.editedAt=now();
 }else{if(!(D.boardWriteAll||adm()))return alert('권한이 없습니다.');
-D.posts.push({id:nx(D.posts),boardId:bid,title:t,body:b,uid:S.uid,d:now(),seenBy:[S.uid],comments:[]})}
-save();S.tab='';S.editPost=null;R()}
+D.posts.push({id:nx(D.posts),boardId:bid,title:t,body:b,img:postImgDraft||null,uid:S.uid,d:now(),seenBy:[S.uid],comments:[],likes:[]})}
+postImgDraft=null;save();S.tab='';S.editPost=null;R()}
+function toggleLike(id){const p=D.posts.find(x=>x.id===id);if(!p)return;p.likes=p.likes||[];const i=p.likes.indexOf(S.uid);if(i>=0)p.likes.splice(i,1);else p.likes.push(S.uid);save();R()}
 function delPost(id){const p=D.posts.find(x=>x.id===id);if(!p)return;if(!(adm()||p.uid===S.uid))return alert('권한이 없습니다.');
 if(!confirm('삭제할까요?'))return;D.posts=D.posts.filter(x=>x.id!==id);S.postOpen=null;save();R()}
-function postDetail(p){const can=adm()||p.uid===S.uid;
-const cs=(p.comments||[]).map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--ln)"><b>${e(nm(c.uid))}</b> <span class="mu" style="font-size:11px">${fmt(c.d)}</span>${(adm()||c.uid===S.uid)?` <button class="btn" style="padding:2px 8px;font-size:11px" onclick="delComment(${p.id},${c.id})">삭제</button>`:''}<div style="margin-top:4px;white-space:pre-wrap">${e(c.b)}</div></div>`).join('')||empty('댓글이 없습니다.');
-return card(e(p.title),`<div class="mu" style="font-size:12px">${e(nm(p.uid))} · ${fmt(p.d)}${p.edited?' · <span class="rd">수정됨</span> ('+fmt(p.editedAt)+')':''}</div><div style="white-space:pre-wrap;line-height:1.65;margin-top:12px">${e(p.body)}</div><div style="margin-top:14px;display:flex;gap:8px">${can?`<button class="btn" onclick="S.tab='new';S.editPost=${p.id};R()">수정</button><button class="btn dg" onclick="delPost(${p.id})">삭제</button>`:''}<button class="btn" onclick="S.postOpen=null;R()">목록으로</button></div><h4 style="margin-top:22px">댓글 (${(p.comments||[]).length})</h4>${cs}<div style="margin-top:10px;display:flex;gap:8px"><input id="cmt_in" style="flex:1" placeholder="댓글을 입력하세요..."><button class="btn" style="flex:none" onclick="addComment(${p.id})">등록</button></div>`)}
+function postDetail(p){const can=adm()||p.uid===S.uid,liked=(p.likes||[]).includes(S.uid);
+const cs=(p.comments||[]).map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--ln)"><b>${authorLabel(c.uid)}</b> <span class="mu" style="font-size:11px">${fmt(c.d)}</span>${(adm()||c.uid===S.uid)?` <button class="btn" style="padding:2px 8px;font-size:11px" onclick="delComment(${p.id},${c.id})">삭제</button>`:''}<div style="margin-top:4px;white-space:pre-wrap">${e(c.b)}</div></div>`).join('')||empty('댓글이 없습니다.');
+return card(e(p.title),`<div class="mu" style="font-size:12px">${authorLabel(p.uid)} · ${fmt(p.d)}${p.edited?' · <span class="rd">수정됨</span> ('+fmt(p.editedAt)+')':''}</div><div style="white-space:pre-wrap;line-height:1.65;margin-top:12px">${e(p.body)}</div>${p.img?`<img src="${p.img}" style="max-width:100%;border-radius:12px;margin-top:12px">`:''}<div class="fpost-actions"><button class="flike ${liked?'on':''}" onclick="toggleLike(${p.id})">${liked?'❤':'🤍'} ${(p.likes||[]).length||''}</button></div><div style="margin-top:14px;display:flex;gap:8px">${can?`<button class="btn" onclick="editPostClick(${p.id})">수정</button><button class="btn dg" onclick="delPost(${p.id})">삭제</button>`:''}<button class="btn" onclick="S.postOpen=null;R()">목록으로</button></div><h4 style="margin-top:22px">댓글 (${(p.comments||[]).length})</h4>${cs}<div style="margin-top:10px;display:flex;gap:8px"><input id="cmt_in" style="flex:1" placeholder="댓글을 입력하세요..."><button class="btn" style="flex:none" onclick="addComment(${p.id})">등록</button></div>`)}
 function addComment(pid){const p=D.posts.find(x=>x.id===pid);if(!p)return;const b=($('#cmt_in')?.value||'').trim();if(!b)return;
 p.comments=p.comments||[];p.comments.push({id:nx(p.comments),uid:S.uid,b,d:now()});save();R()}
 function delComment(pid,cid){const p=D.posts.find(x=>x.id===pid);if(!p)return;const c=(p.comments||[]).find(x=>x.id===cid);if(!c)return;
@@ -376,7 +419,7 @@ if(!(adm()||c.uid===S.uid))return alert('권한이 없습니다.');if(!confirm('
 p.comments=p.comments.filter(x=>x.id!==cid);save();R()}
 P.admin=()=>{if(!adm())return'';const t=S.tab;
 if(t==='an')return card('공지사항 작성',`<div style="max-width:640px">${fld('nt','제목 (필수)')}<label>본문 (필수)</label><textarea id="nb"></textarea><label class="ck"><input type="checkbox" id="ni">중요 공지로 표시</label><label class="ck"><input type="checkbox" id="nc">오염된 공지로 표시</label>${fld('ncov','오염 안내 문구 (선택, 비우면 기본 문구 사용)')}<button class="pri" onclick="addN()">공지 등록</button></div>`);
-if(t==='bd')return card('게시판 관리',`<label class="ck"><input type="checkbox" id="bwa" ${D.boardWriteAll?'checked':''}>전체 사원에게 글쓰기 허용 (해제 시 관리자만 작성 가능, 댓글은 항상 전체 허용)</label><button class="btn" style="margin-top:8px" onclick="saveBoardWriteAll()">권한 저장</button><h4 style="margin-top:22px">게시판 목록</h4>${tbl(['이름','관리'],D.boards.map(b=>`<tr><td class="l">${e(b.n)}</td><td class="nw"><button class="btn" onclick="renameBoard(${b.id})">이름 변경</button> <button class="btn dg" onclick="delBoard(${b.id})">삭제</button></td></tr>`))}<div style="margin-top:14px;max-width:360px">${fld('nbn','새 게시판 이름')}<button class="btn" onclick="addBoard()">게시판 추가</button></div>`);
+if(t==='bd')return card('게시판 설정',`<label class="ck"><input type="checkbox" id="bwa" ${D.boardWriteAll?'checked':''}>전체 사원에게 글쓰기 허용 (해제 시 관리자만 작성 가능, 댓글은 항상 전체 허용)</label><label class="ck" style="margin-top:8px"><input type="checkbox" id="ban" ${D.boardAnon?'checked':''}>모든 사용자를 익명으로 표시 (관리자에게는 실명이 함께 표시됩니다)</label><button class="btn" style="margin-top:10px" onclick="saveBoardSettings()">설정 저장</button><h4 style="margin-top:22px">게시판 목록</h4>${tbl(['이름','관리'],D.boards.map(b=>`<tr><td class="l">${e(b.n)}</td><td class="nw"><button class="btn" onclick="renameBoard(${b.id})">이름 변경</button> <button class="btn dg" onclick="delBoard(${b.id})">삭제</button></td></tr>`))}<div style="margin-top:14px;max-width:360px">${fld('nbn','새 게시판 이름')}<button class="btn" onclick="addBoard()">게시판 추가</button></div>`);
 if(t==='set')return card('사이트 설정',`<div style="max-width:640px">${fld('sco','회사명','text',`value="${e(D.co)}"`)}${fld('smk','관리자 마크 라벨','text',`value="${e(D.mark)}"`)}<h4>메뉴 설정</h4><table><tr><th>메뉴</th><th>이름</th><th>표시</th></tr>${D.menus.map((m,i)=>`<tr><td>${m.k}</td><td><input id="mn${i}" value="${e(m.n)}"></td><td><input type="checkbox" id="mv${i}" ${m.v?'checked':''} ${m.k==='admin'?'disabled':''}></td></tr>`).join('')}</table><h4>상담 탭 설정</h4><label>안내 문구 (상담 시작 전 표시)</label><textarea id="sci" style="min-height:90px">${e(D.counselIntro)}</textarea>${fld('scn','상담사 표시 이름','text',`value="${e(D.counselName)}"`)}<label>색상 커스터마이징</label>${(()=>{const c=D.counselColors,cs=[['bg1','배경1'],['bg2','배경2'],['bd','테두리'],['acc','아이콘'],['txt','안내 문구'],['emp','내 말풍선'],['empt','내 글자'],['adm','상담사 말풍선'],['admt','상담사 글자']];return`<div class="ccolor-row">${cs.map(x=>`<label>${x[1]}<input type="color" id="cc_${x[0]}" value="${c[x[0]]}"></label>`).join('')}</div>`})()}<button class="btn" onclick="resetCounselColors()">색상 기본값으로</button><button class="pri" onclick="saveSet()">저장</button></div>`);
 const rows=D.users.map(u=>{const main=u.role==='main';return`<tr><td>${e(u.id)}</td><td>${e(u.name)}${u.role!=='user'?MK():''}</td><td>${e(u.dept)}</td><td>${e(u.rank)}</td><td>${u.pts} P</td><td>${main?'메인 관리자':u.role==='admin'?'관리자':'사원'}</td><td class="${u.off?'rd':''}">${u.off?'비활성':'정상'}</td><td class="nw"><button class="btn" onclick="editU('${u.id}')">수정</button> <button class="btn" onclick="togU('${u.id}')">${u.off?'활성화':'비활성'}</button> ${main?'':`<button class="btn" onclick="roleU('${u.id}')">${u.role==='admin'?'관리자 해임':'관리자 임명'}</button> `}<button class="btn dg" onclick="delU('${u.id}')">삭제</button></td></tr>`});
 return`<div class="two">${card('사원 목록',tbl(['아이디','이름','부서','직급','포인트','권한','상태','관리'],rows))}<div class="card side"><h3>계정 생성</h3>${fld('cid','아이디 (필수)')}${fld('cpw','비밀번호 (필수)','password')}${fld('cnm','이름 (필수)')}${fld('cdp','부서')}${fld('ctm','소속 팀')}${fld('cal','가면(호칭)')}${fld('crk','직급')}<button class="pri" onclick="addU()">계정 생성</button></div></div>`};
@@ -387,7 +430,7 @@ if($('#scn'))D.counselName=v('scn')||D.counselName;
 if($('#cc_bg1')){['bg1','bg2','bd','acc','txt','emp','empt','adm','admt'].forEach(k=>{const el=$('#cc_'+k);if(el)D.counselColors[k]=el.value});}
 save();R();alert('저장되었습니다.')}
 function resetCounselColors(){D.counselColors={bg1:'#fff8f0',bg2:'#ffead2',bd:'#ffdcb0',acc:'#c9832f',txt:'#8a4b16',emp:'#ffb46e',empt:'#3a2410',adm:'#ffffff',admt:'#5a3a1a'};save();R()}
-function saveBoardWriteAll(){if(!need())return;D.boardWriteAll=$('#bwa').checked?1:0;save();R();alert('저장되었습니다.')}
+function saveBoardSettings(){if(!need())return;D.boardWriteAll=$('#bwa').checked?1:0;D.boardAnon=$('#ban').checked?1:0;save();R();alert('저장되었습니다.')}
 function addBoard(){if(!need())return;const n=v('nbn');if(!n)return alert('게시판 이름을 입력하세요.');D.boards.push({id:nx(D.boards),n});save();R()}
 function renameBoard(id){if(!need())return;const b=D.boards.find(x=>x.id===id);const n=prompt('게시판 이름',b.n);if(!n)return;b.n=n;save();R()}
 function delBoard(id){if(!need())return;if(D.boards.length<=1)return alert('최소 1개의 게시판은 유지해야 합니다.');if(!confirm('게시판을 삭제하면 해당 게시판의 글도 모두 삭제됩니다. 삭제할까요?'))return;D.boards=D.boards.filter(x=>x.id!==id);D.posts=D.posts.filter(x=>x.boardId!==id);save();R()}
