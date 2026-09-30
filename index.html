@@ -124,6 +124,7 @@ const fmt=s=>{const d=new Date(s);return isNaN(d)?'':`${d.getFullYear()}년 ${d.
 const now=()=>{const d=new Date();return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`};
 const nx=a=>Math.max(0,...a.map(x=>x.id))+1;
 const K='baegilmong_intranet_v1';
+const UK=K+'_uid';
 function seed(){const U=(id,name,dept,rank,pts)=>({id,pw:'1234',name,dept,team:'',alias:'',rank,pts,role:'user',off:0,reason:'',buys:{},cbuys:{}});
 const pr=(id,n,d,p)=>({id,n,d,p,ord:id,lim:0,sold:0,show:1});
 return{co:'백일몽 주식회사',mark:'관리자',
@@ -182,6 +183,7 @@ try{
   SYNC='ok';
   DB.onSnapshot(s=>{if(s.exists&&s.data()){D=s.data();R()}},()=>{SYNC='err';rsync()});
 }catch(x){DB=null;try{D=JSON.parse(localStorage.getItem(K))}catch(y){}D=D||seed();if(migrate(D))save();SYNC='local'}
+try{const su=localStorage.getItem(UK);if(su){const u=D.users.find(x=>x.id===su);if(u&&!u.off)S.uid=su}}catch(x){}
 R();
 }
 const S={uid:null,pg:'notices',tab:'',counselOpen:null,brd:null,postOpen:null,editPost:null};
@@ -242,8 +244,8 @@ const go=p=>{S.pg=p;S.tab='';S.counselOpen=null;S.postOpen=null;S.editPost=null;
 function login(){const u=U(v('lid'));
 if(!u||u.pw!==$('#lpw').value){$('#lerr').textContent='아이디 또는 비밀번호가 올바르지 않습니다.';return false}
 if(u.off){$('#lerr').textContent=u.reason;return false}
-S.uid=u.id;S.pg='notices';S.tab='';R();return false}
-const logout=()=>{S.uid=null;R()};
+S.uid=u.id;try{localStorage.setItem(UK,u.id)}catch(x){}S.pg='notices';S.tab='';R();return false}
+const logout=()=>{S.uid=null;try{localStorage.removeItem(UK)}catch(x){}R()};
 function R(){if(!D)return;const m=me();
 if(!m){app.innerHTML=`<form id="lg" onsubmit="return login()"><small class="mu">사내 인트라넷</small><h2>${e(D.co)}</h2>${fld('lid','아이디','text','autocomplete="username"')}${fld('lpw','비밀번호','password','autocomplete="current-password"')}<button class="pri" style="width:100%">출근</button><div id="lerr"></div></form>`;return}
 const ms=D.menus.filter(x=>x.v&&(x.k!=='admin'||adm()));if(!ms.some(x=>x.k===S.pg))S.pg=ms[0].k;
