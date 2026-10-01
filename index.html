@@ -234,6 +234,11 @@ return ch}
 let D=null,DB=null,SYNC='connecting';
 const firebaseConfig={apiKey:"AIzaSyCDFMpi_y2U-Sf_wwAG1aqD4WPfOSSEAyk",authDomain:"gsgw-82ac2.firebaseapp.com",projectId:"gsgw-82ac2",storageBucket:"gsgw-82ac2.firebasestorage.app",messagingSenderId:"542740660762",appId:"1:542740660762:web:15ae627fd53be497f047a3"};
 const save=()=>{if(DB){SYNC='syncing';DB.set(D).then(()=>{SYNC='ok';rsync()}).catch(()=>{SYNC='err';rsync()})}else{try{localStorage.setItem(K,JSON.stringify(D))}catch(x){}}};
+function saveTx(mutate){
+if(!DB){mutate(D);try{localStorage.setItem(K,JSON.stringify(D))}catch(x){}R();return}
+SYNC='syncing';
+firebase.firestore().runTransaction(tx=>tx.get(DB).then(doc=>{const latest=(doc.exists&&doc.data())?doc.data():D;mutate(latest);tx.set(DB,latest);return latest}))
+.then(latest=>{D=latest;SYNC='ok';rsync();R()}).catch(()=>{SYNC='err';rsync();R()})}
 function rsync(){const b=document.getElementById('syncbadge'),l=document.getElementById('led');if(b)b.textContent=SYNC==='syncing'?'저장 중…':SYNC==='err'?'저장 실패 – 인터넷 연결을 확인해 주세요.':'';if(l)l.className='led '+(SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':'')}
 async function boot(){
 try{
@@ -251,7 +256,7 @@ R();
 }
 const S={uid:null,pg:'notices',tab:'',counselOpen:null,brd:null,postOpen:null,editPost:null,invOpen:null};
 const today=()=>now().slice(0,10);
-let counselDraft='';
+let drafts={};
 let postImgDraft=null;
 function readImageCompressed(file,maxW=800,maxH=800,quality=0.7){return new Promise((resolve,reject)=>{
 const reader=new FileReader();
@@ -279,6 +284,13 @@ const empty=m=>`<p class="mu">${m}</p>`;
 const MK=()=>` <i class="mk">[${e(D.mark)}]</i>`;
 const seen=(arr,uid)=>!!(arr||[]).includes(uid);
 const markSeen=(o,uid)=>{o.seenBy=o.seenBy||[];if(!o.seenBy.includes(uid))o.seenBy.push(uid)};
+let seenCache=null;
+function localSeen(){if(!seenCache){try{seenCache=JSON.parse(localStorage.getItem('SEEN_'+S.uid)||'{}')}catch(x){seenCache={}}}return seenCache}
+function saveSeenLocal(){try{localStorage.setItem('SEEN_'+S.uid,JSON.stringify(seenCache||{}))}catch(x){}}
+const seenL=(type,id)=>(localSeen()[type]||[]).includes(id);
+function markSeenL(type,id){const s=localSeen();s[type]=s[type]||[];if(!s[type].includes(id)){s[type].push(id);saveSeenLocal()}}
+const caseSeenId=caseId=>(localSeen().inv||{})[caseId]||0;
+function markCaseSeenL(c){const s=localSeen();s.inv=s.inv||{};s.inv[c.id]=c.log.length?c.log[c.log.length-1].id:0;saveSeenLocal()}
 const readIn=(m,uid)=>(m.to===uid||m.to==='*')&&m.from!==uid;
 function modal(title,meta,bodyHtml){const d=document.createElement('div');d.className='ov';d.onclick=ev=>{if(ev.target===d&&!d.querySelector('.md.cosmic'))d.remove()};
 d.innerHTML=`<div class="md"><button class="x" onclick="this.closest('.ov').remove()">✕</button><h3>${e(title)}</h3>${meta?`<div class="mt">${meta}</div>`:''}<div class="bd">${bodyHtml}</div></div>`;document.body.appendChild(d)}
@@ -297,12 +309,12 @@ const STATN={str:'근력',dex:'민첩',int:'지식',luk:'행운',men:'정신력'
 const diceTier=t=>t>=12?{n:'대성공',c:'b-ok'}:t>=10?{n:'극단적 성공',c:'b-ok'}:t>=7?{n:'보통 성공',c:'b-wt'}:t<=2?{n:'대실패',c:'b-no'}:{n:'실패',c:'b-no'};
 const badge=st=>`<span class="badge ${st==='승인'?'b-ok':st==='반려'?'b-no':'b-wt'}">${e(st)}</span>`;
 const ctag=o=>o.corrupted?'<span class="corrupt">[오염] </span>':'';
-function navDot(k,uid){if(k==='notices')return D.notices.some(n=>!seen(n.seenBy,uid));
+function navDot(k,uid){if(k==='notices')return D.notices.some(n=>!seenL('notices',n.id));
 if(k==='messenger')return D.msgs.some(m=>readIn(m,uid)&&!(m.readBy||[]).includes(uid));
 if(k==='reports'){const A=adm();return D.reports.some(r=>(A||r.who===uid)&&!seen(r.seenBy,uid))}
 if(k==='counsel'){if(adm())return D.counsel.some(c=>c.unreadAdm);return D.counsel.some(c=>c.uid===uid&&c.unreadEmp)}
-if(k==='board')return D.posts.some(p=>!seen(p.seenBy,uid));
-if(k==='inv')return (D.inv?.cases||[]).some(c=>c.status==='active'&&c.log.length&&((c.seenAt&&c.seenAt[uid])||0)<c.log[c.log.length-1].id);
+if(k==='board')return D.posts.some(p=>!seenL('posts',p.id));
+if(k==='inv')return (D.inv?.cases||[]).some(c=>c.status==='active'&&c.log.length&&caseSeenId(c.id)<c.log[c.log.length-1].id);
 return false}
 const TABS={shop:[['view','상품 보기'],['craft','장비 제작'],['manage','상품 관리',1],['items','소지품 지급',1],['recipes','제작 레시피',1],['sn','공지 작성',1],['craftsn','제작 공지 작성',1]],messenger:[['in','받은 쪽지함'],['out','보낸 쪽지함'],['new','새 쪽지']],reports:[['list','보고서 목록'],['new','보고서 제출']],admin:[['users','사원 관리'],['an','공지사항 작성'],['bd','게시판 설정'],['mon','쪽지 모니터링'],['set','사이트 설정']]};
 function tabsH(){const l=(TABS[S.pg]||[]).filter(t=>!t[2]||adm());if(!l.length)return'';if(!l.some(t=>t[0]===S.tab))S.tab=l[0][0];
@@ -311,8 +323,8 @@ const go=p=>{S.pg=p;S.tab='';S.counselOpen=null;S.postOpen=null;S.editPost=null;
 function login(){const u=U(v('lid'));
 if(!u||u.pw!==$('#lpw').value){$('#lerr').textContent='아이디 또는 비밀번호가 올바르지 않습니다.';return false}
 if(u.off){$('#lerr').textContent=u.reason;return false}
-S.uid=u.id;try{localStorage.setItem(UK,u.id)}catch(x){}S.pg='notices';S.tab='';R();return false}
-const logout=()=>{S.uid=null;try{localStorage.removeItem(UK)}catch(x){}R()};
+S.uid=u.id;try{localStorage.setItem(UK,u.id)}catch(x){}seenCache=null;S.pg='notices';S.tab='';R();return false}
+const logout=()=>{S.uid=null;seenCache=null;try{localStorage.removeItem(UK)}catch(x){}R()};
 let lastPg=null;
 function R(){if(!D)return;const m=me();
 if(!m){app.innerHTML=`<form id="lg" onsubmit="return login()"><small class="mu">사내 인트라넷</small><h2>${e(D.co)}</h2>${fld('lid','아이디','text','autocomplete="username"')}${fld('lpw','비밀번호','password','autocomplete="current-password"')}<button class="pri" style="width:100%">출근</button><div id="lerr"></div></form>`;return}
@@ -322,7 +334,7 @@ const af=document.activeElement;const afId=(af&&af.id)?af.id:null;
 const afSel=(afId&&(af.tagName==='INPUT'||af.tagName==='TEXTAREA')&&typeof af.selectionStart==='number')?[af.selectionStart,af.selectionEnd]:null;
 const navigated=S.pg!==lastPg;lastPg=S.pg;
 app.innerHTML=`<header><span style="gap:14px"><span onclick="logoClick()" style="cursor:default;display:flex">${LOGO}</span><b>${e(D.co)}</b><span class="clk" id="clk"></span></span><span><span class="led ${SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':''}" id="led"></span>${e(m.name)}${adm()?MK():''} · 보유 포인트 <span class="pts">${m.pts} P</span><button class="out" onclick="logout()">퇴근</button></span></header><div id="bd"><nav>${ms.map(x=>`${x.k==='inv'?'<div class="nav-sep"></div>':''}<a class="${x.k===S.pg?'on':''}" onclick="go('${x.k}')">${ICON[x.k]||''}${e(x.n)}${navDot(x.k,S.uid)?'<span class="dot"></span>':''}</a>`).join('')}<div class="syn" id="syncbadge">${SYNC==='local'?'서버 연결 실패 — 이 기기에만 저장됩니다':''}</div></nav><main${navigated?' class="fadein"':''}>${tabsH()}${P[S.pg]()}</main></div>`;tick();
-const ci=$('#cinput');if(ci)ci.value=counselDraft;
+Object.keys(drafts).forEach(id=>{const el=document.getElementById(id);if(el&&!el.value)el.value=drafts[id]});
 const cm=$('#cmsgs');if(cm)cm.scrollTop=cm.scrollHeight;
 const il=$('#ivlog');if(il)il.scrollTop=il.scrollHeight;
 if(afId){const el=document.getElementById(afId);if(el&&typeof el.focus==='function'){el.focus();if(afSel&&typeof el.setSelectionRange==='function'){try{el.setSelectionRange(afSel[0],afSel[1])}catch(x){}}}}
@@ -334,12 +346,12 @@ let top;
 if(latest){
 const bodyArea=latest.corrupted?`<div class="spoiler-box">🔒 ${e(latest.cover||'오염된 공지입니다. 버튼을 눌러 확인하세요.')}</div>`:`<div style="white-space:pre-wrap;line-height:1.65;margin-top:10px">${e(latest.b||'(본문 없음)')}</div>`;
 const dateLine=`<div class="mu" style="margin-top:12px;font-size:12px">${fmt(latest.d)}${latest.edited?' · <span class="rd">수정됨</span> ('+fmt(latest.editedAt)+')':''}</div>`;
-const viewBtn=latest.corrupted?`<button class="btn" onclick="viewN(${latest.id})">🔒 오염된 공지 확인</button>`:(!seen(latest.seenBy,uid)?`<button class="btn" onclick="viewN(${latest.id})">확인 처리</button>`:'');
-top=card('최신 공지사항',`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><h3 style="margin:0;font-size:17px">${e(latest.t)}${latest.imp?' <span class="rd">[중요]</span>':''}</h3>${!seen(latest.seenBy,uid)?'<span class="udot"></span>':''}</div>${bodyArea}${dateLine}<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${viewBtn}`+(A?`<button class="btn" onclick="editN(${latest.id})">수정</button><button class="btn dg" onclick="delN(${latest.id})">삭제</button>`:'')+`</div>`);
+const viewBtn=latest.corrupted?`<button class="btn" onclick="viewN(${latest.id})">🔒 오염된 공지 확인</button>`:(!seenL('notices',latest.id)?`<button class="btn" onclick="viewN(${latest.id})">확인 처리</button>`:'');
+top=card('최신 공지사항',`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><h3 style="margin:0;font-size:17px">${e(latest.t)}${latest.imp?' <span class="rd">[중요]</span>':''}</h3>${!seenL('notices',latest.id)?'<span class="udot"></span>':''}</div>${bodyArea}${dateLine}<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${viewBtn}`+(A?`<button class="btn" onclick="editN(${latest.id})">수정</button><button class="btn dg" onclick="delN(${latest.id})">삭제</button>`:'')+`</div>`);
 }else{top=card('최신 공지사항',empty('등록된 공지가 없습니다.')+(A?empty('공지사항 작성은 관리자 탭에서 할 수 있습니다.'):''));}
-const list=ns.length>1?card('지난 공지사항',tbl(['번호','제목','작성일','구분',...(A?['관리']:[])],ns.slice(1).map(n=>`<tr><td>${n.id}</td><td class="l">${seen(n.seenBy,uid)?'':'<span class="udot"></span>'}<a onclick="viewN(${n.id})">${n.corrupted?'🔒 오염된 공지':e(n.t)}</a>${n.edited?' <span class="mu" style="font-size:11px">(수정됨)</span>':''}</td><td>${fmt(n.d)}</td><td class="rd">${n.imp?'중요':''}</td>${A?`<td class="nw"><button class="btn" onclick="editN(${n.id})">수정</button> <button class="btn dg" onclick="delN(${n.id})">삭제</button></td>`:''}</tr>`))):'';
+const list=ns.length>1?card('지난 공지사항',tbl(['번호','제목','작성일','구분',...(A?['관리']:[])],ns.slice(1).map(n=>`<tr><td>${n.id}</td><td class="l">${seenL('notices',n.id)?'':'<span class="udot"></span>'}<a onclick="viewN(${n.id})">${n.corrupted?'🔒 오염된 공지':e(n.t)}</a>${n.edited?' <span class="mu" style="font-size:11px">(수정됨)</span>':''}</td><td>${fmt(n.d)}</td><td class="rd">${n.imp?'중요':''}</td>${A?`<td class="nw"><button class="btn" onclick="editN(${n.id})">수정</button> <button class="btn dg" onclick="delN(${n.id})">삭제</button></td>`:''}</tr>`))):'';
 return top+list};
-function viewN(id){const n=D.notices.find(x=>x.id===id);markSeen(n,S.uid);save();R();
+function viewN(id){const n=D.notices.find(x=>x.id===id);markSeenL('notices',id);R();
 if(n.corrupted){
 modal('','',`<div class="corrupt" style="font-size:17px;font-weight:700">${e(n.t)}</div><div class="mu" style="margin:8px 0 14px;font-size:12px">${fmt(n.d)}${n.imp?' · <span class="rd">중요</span>':''}${n.edited?' · <span class="rd">수정됨</span> ('+fmt(n.editedAt)+')':''}</div><div class="corrupt" style="white-space:pre-wrap;line-height:1.65">${e(n.b||'(본문 없음)')}</div>`);
 document.querySelector('.ov .md')?.classList.add('corrupt');
@@ -533,14 +545,15 @@ const rows=sorted.map(c=>`<tr><td class="l">${c.unreadAdm?'<span class="udot"></
 return card(e(counselLabel())+' · 상담 목록',`<button class="btn" style="margin-bottom:12px" onclick="S.cnAdm=true;R()">상담 공지 관리</button>`+(sorted.length?tbl(['사원','날짜','대화 수','관리'],rows):empty('접수된 상담이 없습니다.')))}
 function counselChatBox(c,isAdmin){if(isAdmin){if(c.unreadAdm){c.unreadAdm=0;save()}}else{if(c.unreadEmp){c.unreadEmp=0;save()}}
 const msgsHtml=c.msgs.length?c.msgs.map(m=>`<div class="cmsg ${m.who}"><span class="who">${m.who==='emp'?e(nm(c.uid)):e(D.counselName)}</span>${e(m.b)}</div>`).join(''):'<p class="mu" style="text-align:center">아직 대화가 없습니다. 편하게 이야기를 건네보세요.</p>';
-return `<div class="counsel-wrap" style="${counselVars()}"><div class="counsel-msgs" id="cmsgs">${msgsHtml}</div><div style="display:flex;gap:8px"><input id="cinput" style="flex:1" placeholder="이야기를 들려주세요..." oninput="counselDraft=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();sendCounsel(${c.id},${isAdmin})}"><button class="btn" style="flex:none;white-space:nowrap" onclick="sendCounsel(${c.id},${isAdmin})">전송</button></div></div>`}
+return `<div class="counsel-wrap" style="${counselVars()}"><div class="counsel-msgs" id="cmsgs">${msgsHtml}</div><div style="display:flex;gap:8px"><input id="cinput" style="flex:1" placeholder="이야기를 들려주세요..." oninput="drafts['cinput']=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();sendCounsel(${c.id},${isAdmin})}"><button class="btn" style="flex:none;white-space:nowrap" onclick="sendCounsel(${c.id},${isAdmin})">전송</button></div></div>`}
 function startCounsel(){const td=today();if(D.counsel.some(c=>c.uid===S.uid&&c.date===td))return;
 D.counsel.push({id:nx(D.counsel),uid:S.uid,date:td,msgs:[],unreadEmp:0,unreadAdm:1});save();R()}
-function sendCounsel(id,isAdmin){const c=D.counsel.find(x=>x.id===id);if(!c)return;
+function sendCounsel(id,isAdmin){const c0=D.counsel.find(x=>x.id===id);if(!c0)return;
 const val=($('#cinput')?.value||'').trim();if(!val)return;
+delete drafts['cinput'];const ci=$('#cinput');if(ci)ci.value='';
+saveTx(latest=>{const c=latest.counsel.find(x=>x.id===id);if(!c)return;
 c.msgs.push({who:isAdmin?'adm':'emp',b:val,d:now()});
-if(isAdmin)c.unreadEmp=1;else c.unreadAdm=1;
-counselDraft='';save();R()}
+if(isAdmin)c.unreadEmp=1;else c.unreadAdm=1})}
 const bdName=id=>D.boards.find(b=>b.id===id)?.n||'게시판';
 const authorLabel=uid=>{const real=e(nm(uid));if(!D.boardAnon)return real;return adm()?`익명 (${real})`:'익명'};
 const authorInitial=uid=>(D.boardAnon&&!adm())?'익':(nm(uid)||'?').charAt(0);
@@ -555,7 +568,7 @@ function newPostClick(){S.tab='new';S.editPost=null;postImgDraft=null;R()}
 function editPostClick(id){const p=D.posts.find(x=>x.id===id);S.tab='new';S.editPost=id;postImgDraft=p?p.img||null:null;R()}
 function feedCard(p){const liked=(p.likes||[]).includes(S.uid);
 return `<div class="fpost"><div class="fpost-head"><div class="favatar">${e(authorInitial(p.uid))}</div><div><div class="fname">${authorLabel(p.uid)}</div><div class="fdate">${fmt(p.d)}${p.edited?' · 수정됨':''}</div></div></div>
-<div class="fpost-title" onclick="openPost(${p.id})">${e(p.title)}${!seen(p.seenBy,S.uid)?' <span class="udot"></span>':''}</div>
+<div class="fpost-title" onclick="openPost(${p.id})">${e(p.title)}${!seenL('posts',p.id)?' <span class="udot"></span>':''}</div>
 <div class="fpost-body" onclick="openPost(${p.id})">${e(p.body)}</div>
 ${p.img?`<img class="fpost-img" src="${p.img}" onclick="openPost(${p.id})">`:''}
 <div class="fpost-actions"><button class="flike ${liked?'on':''}" onclick="toggleLike(${p.id})">${liked?'❤':'🤍'} ${(p.likes||[]).length||''}</button><button class="fcmt" onclick="openPost(${p.id})">💬 ${(p.comments||[]).length||''}</button></div></div>`}
@@ -565,7 +578,7 @@ const writeBtn=canWrite?`<button class="pri" onclick="newPostClick()">글쓰기<
 const snBtn=adm()?` <button class="btn" onclick="S.bdAdm=true;R()">게시판 공지 관리</button>`:'';
 const feed=ps.length?`<div class="feed">${ps.map(feedCard).join('')}</div>`:empty('등록된 글이 없습니다.');
 return card(e(bdName(bid)),`<div style="margin-bottom:14px">${writeBtn}${snBtn}</div>${feed}`)}
-function openPost(id){const p=D.posts.find(x=>x.id===id);markSeen(p,S.uid);save();S.postOpen=id;R()}
+function openPost(id){const p=D.posts.find(x=>x.id===id);markSeenL('posts',id);S.postOpen=id;R()}
 function postForm(bid,editId){const p=editId?D.posts.find(x=>x.id===editId):null;
 return card(p?'게시글 수정':'새 글 작성',`<div style="max-width:560px">${fld('pf_t','제목 (필수)','text',p?`value="${e(p.title)}"`:'')}<label>내용 (필수)</label><textarea id="pf_b">${p?e(p.body):''}</textarea><label>사진 첨부 (선택)</label><input type="file" id="pf_img" accept="image/*" onchange="handlePostImg(event)"><img id="pf_imgprev" src="${postImgDraft||''}" style="max-width:100%;border-radius:10px;margin-top:8px;display:${postImgDraft?'block':'none'}"><button type="button" id="pf_imgrm" class="btn" style="margin-top:6px;display:${postImgDraft?'inline-block':'none'}" onclick="removePostImg()">사진 제거</button><div style="margin-top:14px"><button class="pri" onclick="savePost(${bid},${editId||'null'})">${p?'수정 완료':'등록'}</button> <button class="btn" onclick="S.tab='';R()">취소</button></div></div>`)}
 function savePost(bid,editId){const t=v('pf_t'),b=$('#pf_b').value.trim();if(!t||!b)return alert('제목과 내용은 필수입니다.');
@@ -590,7 +603,7 @@ if(S.tab==='new'&&adm())return invNewForm();
 return invList()};
 function invList(){const A=adm();const cs=D.inv.cases.filter(c=>!c.parentId).sort((a,b)=>(a.status===b.status?0:a.status==='active'?-1:1)||b.id-a.id);
 const rows=cs.map(c=>{const filled=c.slots.filter(Boolean).length;
-const unread=c.status==='active'&&c.log.length&&((c.seenAt&&c.seenAt[S.uid])||0)<c.log[c.log.length-1].id;
+const unread=c.status==='active'&&c.log.length&&caseSeenId(c.id)<c.log[c.log.length-1].id;
 return`<tr><td class="l">${unread?'<span class="udot"></span>':''}<a onclick="openInv(${c.id})">${e(c.title)}</a></td><td>${c.status==='active'?'진행중':'종료'}</td><td>${filled} / ${c.slotCount}</td><td>${fmt(c.d)}</td>${A?`<td class="nw"><button class="btn" onclick="toggleCaseStatus(${c.id})">${c.status==='active'?'종료':'재개'}</button> <button class="btn dg" onclick="deleteCase(${c.id})">삭제</button></td>`:''}</tr>`});
 const body=cs.length?tbl(['제목','상태','참가 인원','등록일',...(A?['관리']:[])],rows):empty('등록된 시나리오가 없습니다.');
 return card('시나리오 목록',empty('진행 중인 조사에 참가하거나, 참가하지 않은 경우 관전으로 확인할 수 있습니다.')+(A?`<button class="pri" style="margin:10px 0 14px" onclick="S.tab='new';R()">새 시나리오 만들기</button>`:'')+body)}
@@ -600,8 +613,7 @@ const sc=Math.max(1,+v('ivsc')||D.inv.slotCount||6);const intro=($('#ivintro')?.
 const id=nx(D.inv.cases);
 D.inv.cases.push({id,title:t,status:'active',slotCount:sc,slots:Array(sc).fill(null),log:intro?[{id:1,type:'narr',text:intro,d:now()}]:[],parentId:null,seenAt:{},d:now()});
 D.inv.slotCount=sc;save();S.tab='';S.invOpen=id;R()}
-function openInv(id){const c=D.inv.cases.find(x=>x.id===id);if(!c)return;S.invOpen=id;S.tab='';markCaseSeen(c,S.uid);save();R()}
-function markCaseSeen(c,uid){c.seenAt=c.seenAt||{};c.seenAt[uid]=c.log.length?c.log[c.log.length-1].id:0}
+function openInv(id){const c=D.inv.cases.find(x=>x.id===id);if(!c)return;S.invOpen=id;S.tab='';markCaseSeenL(c);R()}
 function invCaseView(c){const A=adm(),uid=S.uid,isP=c.slots.includes(uid),filled=c.slots.filter(Boolean).length,active=c.status==='active';
 const slotsHtml=c.slots.map((s,i)=>s?`<div class="prod" style="flex:0 0 150px"><b>${e(nm(s))}</b>${(s===uid||A)?`<div style="margin-top:8px"><button class="btn ${s!==uid?'dg':''}" onclick="releaseSlot(${c.id},${i})">${s===uid?'자리 비우기':'강제 비우기'}</button></div>`:''}</div>`:`<div class="prod" style="flex:0 0 150px"><span class="mu">빈 자리</span>${(!isP&&active)?`<div style="margin-top:8px"><button class="btn" onclick="claimSlot(${c.id},${i})">참가 신청</button></div>`:''}</div>`).join('');
 const logHtml=c.log.length?c.log.map(en=>{
@@ -629,30 +641,33 @@ const diceBox=(isP&&active)?`<div style="margin-top:10px;padding-top:10px;border
 </details>
 </div>`:'';
 const canChat=(isP||A)&&active;
-const chatBox=canChat?`<div style="display:flex;gap:8px;margin-top:4px"><input id="iv_chat" placeholder="채팅 입력 후 Enter" onkeydown="if(event.key==='Enter'){postChat(${c.id});event.preventDefault()}"><button class="btn" onclick="postChat(${c.id})">전송</button></div>${isP?diceBox:''}`:(active?empty('참가 신청 후 채팅·투표·주사위에 참여할 수 있습니다. (관전은 자유롭게 가능합니다)'):'');
+const chatBox=canChat?`<div style="display:flex;gap:8px;margin-top:4px"><input id="iv_chat" placeholder="채팅 입력 후 Enter" oninput="drafts['iv_chat']=this.value" onkeydown="if(event.key==='Enter'){postChat(${c.id});event.preventDefault()}"><button class="btn" onclick="postChat(${c.id})">전송</button></div>${isP?diceBox:''}`:(active?empty('참가 신청 후 채팅·투표·주사위에 참여할 수 있습니다. (관전은 자유롭게 가능합니다)'):'');
 const adminTools=A?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn" onclick="toggleCaseStatus(${c.id})">${active?'시나리오 종료':'시나리오 재개'}</button><button class="btn" onclick="branchCase(${c.id})">분기 생성</button><button class="btn dg" onclick="deleteCase(${c.id})">삭제</button></div>`:'';
-const adminPanel=(A&&active)?card('진행 서술 작성',`<textarea id="iv_narr" placeholder="서술 내용을 입력하세요"></textarea>${fld('iv_opts','선택지 (쉼표로 구분, 비우면 선택지 없는 서술로 등록)')}<button class="pri" onclick="postNarr(${c.id})">등록</button>`):'';
+const adminPanel=(A&&active)?card('진행 서술 작성',`<textarea id="iv_narr" placeholder="서술 내용을 입력하세요" oninput="drafts['iv_narr']=this.value"></textarea>${fld('iv_opts','선택지 (쉼표로 구분, 비우면 선택지 없는 서술로 등록)','text','oninput="drafts[\'iv_opts\']=this.value"')}<button class="pri" onclick="postNarr(${c.id})">등록</button>`):'';
 return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,`<button class="btn" style="margin-bottom:14px" onclick="S.invOpen=null;R()">목록으로</button>`+parentLink+childLinks+`<div class="mu" style="margin-bottom:10px">참가 인원 ${filled} / ${c.slotCount}</div><div class="grid" style="margin-bottom:16px">${slotsHtml}</div>`+adminTools+`<div class="invlog" id="ivlog">${logHtml}</div>`+chatBox)+adminPanel}
 function claimSlot(caseId,idx){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active')return alert('종료된 시나리오입니다.');
 if(c.slots.includes(S.uid))return alert('이미 참가 중인 시나리오입니다.');if(c.slots[idx])return alert('이미 선점된 자리입니다.');
 c.slots[idx]=S.uid;save();R()}
 function releaseSlot(caseId,idx){const c=D.inv.cases.find(x=>x.id===caseId);if(!c)return;if(c.slots[idx]!==S.uid&&!adm())return;
 c.slots[idx]=null;save();R()}
-function postNarr(caseId){if(!need())return;const c=D.inv.cases.find(x=>x.id===caseId);const t=($('#iv_narr')?.value||'').trim();if(!t)return alert('서술 내용을 입력하세요.');
+function postNarr(caseId){if(!need())return;const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0)return;const t=($('#iv_narr')?.value||'').trim();if(!t)return alert('서술 내용을 입력하세요.');
 const optsRaw=v('iv_opts');const opts=optsRaw?optsRaw.split(',').map(s=>s.trim()).filter(Boolean).map((label,i)=>({id:String.fromCharCode(97+i),label})):[];
-const id=nx(c.log);c.log.push(opts.length?{id,type:'choice',text:t,options:opts,votes:{},resolved:null,d:now()}:{id,type:'narr',text:t,d:now()});save();R()}
-function postChat(caseId){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active'||(!c.slots.includes(S.uid)&&!adm()))return;
-const inp=$('#iv_chat');const t=(inp?.value||'').trim();if(!t)return;c.log.push({id:nx(c.log),type:'chat',uid:S.uid,text:t,d:now()});save();if(inp)inp.value='';R()}
-function rollStatDice(caseId){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active'||!c.slots.includes(S.uid))return;
+delete drafts['iv_narr'];delete drafts['iv_opts'];const na=$('#iv_narr'),no=$('#iv_opts');if(na)na.value='';if(no)no.value='';
+saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;const id=nx(c.log);c.log.push(opts.length?{id,type:'choice',text:t,options:opts,votes:{},resolved:null,d:now()}:{id,type:'narr',text:t,d:now()})})}
+function postChat(caseId){const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0||c0.status!=='active'||(!c0.slots.includes(S.uid)&&!adm()))return;
+const inp=$('#iv_chat');const t=(inp?.value||'').trim();if(!t)return;delete drafts['iv_chat'];if(inp)inp.value='';
+saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;c.log.push({id:nx(c.log),type:'chat',uid:S.uid,text:t,d:now()})})}
+function rollStatDice(caseId){const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0||c0.status!=='active'||!c0.slots.includes(S.uid))return;
 const statKey=$('#iv_stat')?.value||'str',u=me(),mod=(u.stats&&u.stats[statKey])??0;
 const d1=1+Math.floor(Math.random()*6),d2=1+Math.floor(Math.random()*6),total=d1+d2+mod;
-c.log.push({id:nx(c.log),type:'dice',mode:'stat',uid:S.uid,statKey,mod,d1,d2,total,d:now()});save();R()}
-function rollCustomDice(caseId){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active'||!c.slots.includes(S.uid))return;
+saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;c.log.push({id:nx(c.log),type:'dice',mode:'stat',uid:S.uid,statKey,mod,d1,d2,total,d:now()})})}
+function rollCustomDice(caseId){const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0||c0.status!=='active'||!c0.slots.includes(S.uid))return;
 const raw=($('#iv_dice')?.value||'').trim();const m=raw.match(/^(\d*)d(\d+)([+-]\d+)?$/i);if(!m)return alert('주사위 표기법이 올바르지 않습니다. 예: 2d6, 1d100+5');
 const n=Math.min(20,Math.max(1,+m[1]||1)),sides=Math.max(2,+m[2]),mod=+m[3]||0;
 const rolls=Array.from({length:n},()=>1+Math.floor(Math.random()*sides));
 const total=rolls.reduce((a,b)=>a+b,0)+mod;
-c.log.push({id:nx(c.log),type:'dice',mode:'custom',uid:S.uid,notation:raw,rolls,mod,total,d:now()});save();if($('#iv_dice'))$('#iv_dice').value='';R()}
+if($('#iv_dice'))$('#iv_dice').value='';
+saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;c.log.push({id:nx(c.log),type:'dice',mode:'custom',uid:S.uid,notation:raw,rolls,mod,total,d:now()})})}
 function resolveChoice(en){const tally={};Object.values(en.votes||{}).forEach(o=>tally[o]=(tally[o]||0)+1);
 let win=en.options[0].id,max=-1;en.options.forEach(o=>{const c=tally[o.id]||0;if(c>max){max=c;win=o.id}});en.resolved=win}
 function voteChoice(caseId,entryId,optId){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active'||!c.slots.includes(S.uid))return;
