@@ -136,7 +136,7 @@ const nx=a=>Math.max(0,...a.map(x=>x.id))+1;
 const K='baegilmong_intranet_v1';
 const UK=K+'_uid';
 function seed(){const defStats=()=>({str:0,dex:0,int:0,luk:0,men:0});
-const U=(id,name,dept,rank,pts)=>({id,pw:'1234',name,dept,team:'',alias:'',rank,pts,role:'user',off:0,reason:'',buys:{},cbuys:{},stats:defStats()});
+const U=(id,name,dept,rank,pts)=>({id,pw:'1234',name,dept,team:'',alias:'',rank,pts,role:'user',off:0,reason:'',buys:{},cbuys:{},stats:defStats(),items:[]});
 const pr=(id,n,d,p)=>({id,n,d,p,ord:id,lim:0,sold:0,show:1});
 return{co:'백일몽 주식회사',mark:'관리자',
 menus:[['notices','공지사항'],['profile','개인 프로필'],['shop','복지몰'],['points','포인트'],['messenger','메신저'],['board','게시판'],['counsel','상담'],['reports','보고서'],['inv','어둠 진입'],['admin','관리자']].map(m=>({k:m[0],n:m[1],v:1})),
@@ -144,8 +144,8 @@ counselIntro:'지친 하루였나요? 편하게 이야기를 들려주세요.\n�
 counselName:'상담사',
 counselColors:{bg1:'#fff8f0',bg2:'#ffead2',bd:'#ffdcb0',acc:'#c9832f',txt:'#8a4b16',emp:'#ffb46e',empt:'#3a2410',adm:'#ffffff',admt:'#5a3a1a'},
 boards:[{id:1,n:'자유게시판'}],boardWriteAll:0,boardAnon:0,posts:[],
-inv:{slotCount:6,cases:[]},
-users:[{id:'admin',pw:'admin1234',name:'관리자',dept:'경영지원본부',team:'',alias:'',rank:'관리자',pts:0,role:'main',off:0,reason:'',buys:{},cbuys:{},stats:defStats()},
+inv:{slotCount:6,cases:[]},craftCost:500,recipes:[],craftLog:[],craftSn:[],counselSn:[],boardSn:[],
+users:[{id:'admin',pw:'admin1234',name:'관리자',dept:'경영지원본부',team:'',alias:'',rank:'관리자',pts:0,role:'main',off:0,reason:'',buys:{},cbuys:{},stats:defStats(),items:[]},
 U('sa0142','임도현','총무부','사원',200),U('sa0207','윤세아','이상현상대응1팀','대리',3000),U('sa0311','박정후','시설관리과','주임',250),U('sa0388','강미르','총무부','사원',5600),U('sa0402','한겨울','이상현상대응2팀','사원',1800)],
 notices:[{id:1,t:'야간 근무 시 3층 이동 경로 변경 안내',b:NB[1],imp:1,d:'2026-07-28T09:00'},{id:2,t:'사내 이상현상 보고 절차 개정 공고',b:NB[2],imp:0,d:'2026-07-25T14:30'},{id:3,t:'하계 휴가 신청 기간 안내',b:NB[3],imp:0,d:'2026-07-30T10:00'}],
 sn:[{id:1,t:'복지몰 포인트는 매월 1일 일괄 지급됩니다. 유효기간은 지급일로부터 90일입니다.',d:'2026-09-27T20:44'}],
@@ -187,6 +187,13 @@ if(!d.menus.find(m=>m.k==='inv')){const i=d.menus.findIndex(m=>m.k==='admin');d.
 (()=>{const m=d.menus.find(x=>x.k==='inv');if(m&&m.n==='조사'){m.n='어둠 진입';ch=true}})();
 (d.users||[]).forEach(u=>{if(!u.stats){u.stats={str:0,dex:0,int:0,luk:0,men:0};ch=true}else{['str','dex','int','luk','men'].forEach(k=>{if(u.stats[k]===undefined){u.stats[k]=0;ch=true}})}});
 if(!d.statsV2){d.users.forEach(u=>{u.stats={str:0,dex:0,int:0,luk:0,men:0}});d.statsV2=1;ch=true}
+(d.users||[]).forEach(u=>{if(!u.items){u.items=[];ch=true}});
+if(d.craftCost===undefined){d.craftCost=500;ch=true}
+if(!d.recipes){d.recipes=[];ch=true}
+if(!d.craftLog){d.craftLog=[];ch=true}
+if(!d.craftSn){d.craftSn=[];ch=true}
+if(!d.counselSn){d.counselSn=[];ch=true}
+if(!d.boardSn){d.boardSn=[];ch=true}
 return ch}
 let D=null,DB=null,SYNC='connecting';
 const firebaseConfig={apiKey:"AIzaSyCDFMpi_y2U-Sf_wwAG1aqD4WPfOSSEAyk",authDomain:"gsgw-82ac2.firebaseapp.com",projectId:"gsgw-82ac2",storageBucket:"gsgw-82ac2.firebasestorage.app",messagingSenderId:"542740660762",appId:"1:542740660762:web:15ae627fd53be497f047a3"};
@@ -237,7 +244,7 @@ const MK=()=>` <i class="mk">[${e(D.mark)}]</i>`;
 const seen=(arr,uid)=>!!(arr||[]).includes(uid);
 const markSeen=(o,uid)=>{o.seenBy=o.seenBy||[];if(!o.seenBy.includes(uid))o.seenBy.push(uid)};
 const readIn=(m,uid)=>(m.to===uid||m.to==='*')&&m.from!==uid;
-function modal(title,meta,bodyHtml){const d=document.createElement('div');d.className='ov';d.onclick=ev=>{if(ev.target===d)d.remove()};
+function modal(title,meta,bodyHtml){const d=document.createElement('div');d.className='ov';d.onclick=ev=>{if(ev.target===d&&!d.querySelector('.md.cosmic'))d.remove()};
 d.innerHTML=`<div class="md"><button class="x" onclick="this.closest('.ov').remove()">✕</button><h3>${e(title)}</h3>${meta?`<div class="mt">${meta}</div>`:''}<div class="bd">${bodyHtml}</div></div>`;document.body.appendChild(d)}
 const ICON={notices:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11a8 8 0 0 1 16 0v5l2 3H2l2-3z"/><path d="M9 21a3 3 0 0 0 6 0"/></svg>',
 profile:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4.5 5-6 8-6s6.5 1.5 8 6"/></svg>',
@@ -251,6 +258,7 @@ board:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="
 inv:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="6"/><path d="M21 21l-5.2-5.2"/></svg>'};
 const LOGO='<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAO4AAADwCAYAAAAHMljJAAAg+0lEQVR42u3dd5wURd4G8F/N7grmnHPOAcyKYgI8xXjmAJLFDIoBFE991fP0DKeeCmICTIioKOZTz3Cv53smFO8MZ8JEMCKgu7PP+8dUuUVRNd29OzvTPfP8Pp/9sLozsDNV33mqq6u7RFhVWQAUAMV3gsXKKGC+CyxWRpJWfy2m/1+O7wyLlW60dfr70QBeB7AM8bJY2UB7HVrqHxbeOr5TLFY60V6jwTbqLwB4GcDSTF4WK51or7bQNusvg/clAEsRL4uVLrRXOWhN2XhfBLAk8bJYlUVbr7//k4U2r7+fC+BL/X3ewvsC8bJYlU/aPzpo8wCaABwIYC0An+qfN1l4nwewOPGyWJVJ2ksdtOa49gjr8RsB+MyD91kAixIvi1UeuAbtxZ6kbQZwtHmc9diNA3ifIl4Wq3xJe1EA7bE2bgf6pgA+D+DtSLwsVvuivdDCl7cmo47TP28oktKbAvjCg/cJ4mWx2g/tSE/SAkAvN2nNcz14Nw/gnQKgA/GyWKVFe0EAbe9iaAN4twTwVQiv/neJl8VqJVwDbXhgeNzHHR770BXB+7UH72QAixAvi9U2tOc5Sduk/7u/m7ROQv8RwNO+4a/1mG0AfOPB+wiABuJlsVqH9lwnaQ3aAYGkdY+FzfC3YxG8nQDM8OB9mHhZrORozw4MjwcGjml9E1i/xsTbGcBMD95J+nww8bJYMdAOCyTt4Ijh8UjPhQa/Fps1tp67HYBZnrXNDwKoI14WqzjaoQG0J0UMjy8IXB0EZ9a4WPJuD2C2J3kfIF4Wa2G0DfrPIQG0J0ckbTG0SJi8OwD41pO892u8Od6AjkW0LWBOD6A9rQRo3eR9LALvTgG899k3o2PrsWod7amtRHu+9bwotEnx7gzgew/eu82QmXhZtTw8PjmA9gwXrQMrSdIWw7tIEby7APjBc8w7nnhZtZy0JwXQDm2HpA3hfTQieXe18NrJO848h3hZtZS0gwJoz4yJtrENaFuD90dP8t5FvKxaStqBAbTDyojWnW2OGjbvBuAnT/LeQbysWkDb30FrAJwbcUw7ogTD46jknRyBd08Aczx4byNeVjUPj/tand5O2uERSTuiHZI2lLzeq4Os32UvfQdJF++t+ud1xMuqpqTt46A1Hf588zj7GlrPJX3tidabvEXw7hPAO4p4WdWEtncA7UgXrfO84e04PI7C+0gE3u4A5nnw3sJhM6sa0B4fQHthipK2WPI2eI55zf/rAWC+B+9NTF5WltEeF0B7cQTa8yqQtK1N3t9pvM3Oa7yReFlZRHuM1ZntDn1JTLSNFUQbF69J3v0B/OLBewPxsrKE9ihrVwG7I1+aIbTubPMjEcPmntZj7dd8HfGysoD2SCtl7Q58ua8DB25Tkxa0bvI+HDFsPlDjdT+wriVeVprRHm7tKmB33CvcpHWel8akDSWv915UVvIeZL0O+z24mnhZaUJrOuzvrbS0O+yVbod1hsdpTtpiydtQJHkPCeC9yvcBxmJVKmkPjeioUcPjxgygdfE+FIE39gcZi1UJtAfHHRpmOGmL4a0vgvewJIcOLFa5hseJJmMCt17NGtqkyXtEAO/lxMuqRNIeEDh3+ZcItOdUAdqkeI8KzLRfxmEzq5xJu59G656zvL6G0CYdNh8dWEV2CZOXVY6kTbTEr8qGx1F4J0Uk77Fxl4CyWKVEu2/gipibahitD2+x5A1ddHER8bLaA23oMrabiTY2XnOo0StwQ4GR9nvHYrUVbbfAheOj9c9zAbTDagiti/fBiOQN3VjgAiYvqxQTUXsB+DnOrVqc87TDMri4otTLIyfBs+eQ9R71DeAdweRltSVpu8J/c7QxEcPjs2owaZMmr/lg7BcYNp9NvKzWoN0dCW5HyqQtmrxRw2b3drXmvR5GvKwkaHdDyw3A7Y50ZwRaJm3x5C02bA7dIP4s4mXFQbtrAO3YCLRnEm0k3okRw+bBgWHzUOJlRaH17VA33kKbY9K2GW+x5D0lkLxDiJflQ2tvK2nvj+PdVpJJ2ya8D0Qkb2jb0TOIl+Vu5PydJ2nvNSkbSAeibRtek7y+D8TTAnhPtZGzahftjvDvvn6/SVkmbbvNNkcNm8+IwMvkrVG02wOY7RkeT9AdKjQ8Hkq0JUveCRF4hwbwnkS8tYl2OwCzPGgnxuxIPE9buuSNwntWAO9gDptrC+22AGZ60E6KWCjApC3PMa/vvT/beryNdxCTtzbQbhNAG3UXhyFEW/Fh8zlO8ub1fw9g8lY/2m88aB8h2lThzdltgfC+Sjbe/kze6kS7NYCvPWij9oI9g2jLjvd+N3kR3snQxtuXeKsL7RYBtI8SbWonrKLwjggk7wkcNlcP2i89aKcQbSbwFhs2jwwkb69qx6uqFG2dUioPYDMReVpEVhORvIhAROpF5AkROVgp9QuAnFKq2aBVSjUBOF1ErtXPyQXep2b9xWp936sr8vMm3Vb3i8gxuu1EKdWsz63X6bYaKSIX6cebD+CciPRSSo01bcq3OztJuwmALzxJ+ySAjvoxTNpsJO99Ecl7USB5j6nWY15VZWhN0m6ik3YNJ2n/JiI9lVLz2pi0ORF5XkSm6u+ZvMn6HERkdRE5VH+vYibv0ebxnuS9VESGO8mrRORYpdQ9TN4Uo9V/bgTgM0/SPgtgcU/SmitSTo+ZtI32cRSr1e3VyVofHne22b7ow3efr8s8ydsM4KhqS976akGrk3ZDnbRrOkn7vIgcqJT62ZO0jTGT1q2ldEeo15/yrHhVp9/nZRP20yYROVL/99HmA1gnb1635XAN+lwneccDyCulJjB505e0GwD42JO0LwBYosgx7WkJj2kbnXWyPGfYuvbqmiBxiyWvfcxr/u4/eZK3CcBhbLN0dYL1APzXg/bvAJYsIVrCrSzcOHhN217p4G3W7Xwo2y0dHWBdAB950L4EYKkSoyXcysO1Z5vv1VhVIHn/7MHbCOAQtl1lG38dAB940L4cgfbUNpzyIdzKw7Xb4Z7AhJX5d67x4P0VwEFsv8o0/NoBtK8AWKad0BJueuDayXsPnPuCOXivDeA9gG1Y3kZfC8D7HrT/C2BZ+7ElRku46YJrt4d9Uz/fsPl6D95fAPTUP+fa5nZu8DUB/NuD9tUA2oYSoiXc9MEN4fUl7w0OXqCw1/F+bMv2bezVAbxnATR3QXgNwPLtODwm3HTDXQCvBdaXvDcG8O7L5G2fhl4NwLuepP2XhdY3PD6lxGuPCTedcO22GR+RvDd78M4D0INtWtpGXhXAOx60rwNYoYxoCTfdcO0Jq6hh8y0evHMBdGO7lqaBVwEw1XqTzfD4DQArlRkt4aYfru+YVzl4zRB6dADv3mzbtqN923pzTYO8FYH25Ha8NI9w0w83zrDZ4B3jwfszgL3Yvq1r2JUAvOlB+zaAVSqElnCzA3cBvGbiMoD3dg/eOQD2ZBsna9QV9VDYHR5PBbBqEbQnleEieMLNDtxQ8uY8eO/w9Lc5ALqyneM16Ap6ptidiHo3gLahjGgJN3tw7TYbFzFsHutJ3h8B7M62Lt6Yy+tzsu4n3zQAq1c4aQk3u3Dt2eZx1rDZl7zjPHh/ANCF7e1vyOUCaN8DsEaRpB1c5ntEEW424dptNzaUvPrP8QG8u7DNpWWVE4Bl9ZJFF+1/AmjrK4SWcLMN107esZ4Jq5yF914P3u8B7FzT7W414NL6ih4X7fsA1koZWsLNPtwFkjc026y/7vP0y28B7FCTbW8l7VL62ln3zfkAwDopREu41QHXbse7AsmrUNhJYYKnf84GsF1Ntb+D9kXPm/JhitESbvXATYJ3omfYPKtm8Fpol0ThflAu2o8ArFcE7YkVRku41QU3Lt56AA96+utMAJ2ruh9YaJdA4c6L7pvwMYD13TfBmj1OA1rCrT64SfA+5Om3MwB0KndfyJULrb7/7RIiMllEdpfCfW/N/jGfikg3pdRHKNwjucm8Efq+xyeKyE2S7L7HLFbcqheRRhE5HsBd+r7bCoAy3+u+d7iIPKIfD/3/VhSRJwBso3dUqK8KuBbaxfSL3sNB+5mIdFdKfajR5k3S6jdikEbbTLSsdqwG3S+PB3BnAG+Txvuog3clEXkSwFblwltfRrSTRWRPB+10jfZ9B61J2kEicnNKk7ZON1A9gDR2xGazYwMrcfL2AiBKqd56qGx2Cczpn/9eRCaJyH66Pxu8TwHorpR6G1ndMcE6pl0UwNOeY4PPUdicyz2mNRNRg1JyTBs6HuLeQdVzjBtq4zt9x7z6zw4o7LHs9usvAWzhTrCWulR7odWfUB318Libk7Rf6GPa9+xPJrTsmjdQRG7Rw2OVsqQ1Q/bnpLBbn9l9Li2V1+/xQ0qp52DtlZQWuHqfp65S2NOpuVxzLQnL7BJ4p1LqBA0WSik4/XuSiOzr9O+vRGQfpdS0zCSv9YnUEcATgU+kzYsk7cCUJm3Wani5ZzqrKHHd5L2jSPJ2BPCUp59PR2Fj9XZpg1yp0epPog4i8qCI9PB8EnVXSr0bkbRZmD3O69eWtq/5+s+5HJiX5Ji3SUR6A7jdnbDS/X2+iBwkhV0i7Qmr1fWE1Sa6b9elEq4ZSgBYRKP9nYP2axHpoZR6pwrQin5N9Sn+ytFdSfGeUATvPBE5WESedfCuISJPA9hYHx7UpwquQaun1Cdas20G7QyNdmqVoE1z4povziiXfrb5BAB3BPDOFZED9dyHi/cpABuVMnnrS4i2XkQeEJGeHrQLTZHr87SNAAZYE1FZOk9bl+JOJiKyOL2VtBqsYXOzUqqve6pIKTUXhf2IHpWW9Qp5EVlL4+2mlPrAPvVZEbgW2joRmSAiBzhoZ4rIvkqptzxJa9COyljSmg+Yx0Xkdf19cwp/v+et/2aVNnn7aLA+vD9beLtaeNfWw+a9rRWC+bK/gpgLsDsVmT3ub80qZmn2mOdxa2dWOaoP3F5ktnmJJBfSlCVxraTNici9InKI/mTJ6a/ZOmnfCBzT9heR0ZLO87Rxaymzckq/9tSNDLhyqiwTVs1KqX6e5J0DYH8RmSIiXazkXU8Pm/dRSn1StuS1kjbnXGScL3aHgCpIWl4dxMQN9YXbiiRv6A4vHwBYu7XJm0v4pptkVCJyj4gc5iTt9yLyO6XUPwNJ268KkpbFcpO3D4AxgdnmH6RwluV/ndnmDfQx79r6VFFdu8DVaM3yvrtF5AgP2v2UUq8WQXsr0bKqFG/fIni/13j/6eDdUA+b10yKN9cKtONF5EgH7Y8isr9S6h8RaPNEy6ri2eYQ3jql1HdSWJT0moN3I413jSR4c3HR6l9mrIgcHUD7SgBtXytpeT0tq1qrwUreWx28eY33W433Xw7eTTTe1ePizcVFq29leayD9icR6amUeqkI2jFMWlaNJW8/T/IavLOlcDXR69JyVicvIptqvKvGwZuLifYOETnOQTtHRA5QSr0YgZZJy2LyLoh3lsb7phQWKkE/Z7O4eHNF0JorfW4Tkd4O2p812hc8yxhdtExaVq1OWPUDMFrjzTl4Z0rh6rm3nOTdQgpXFa1SDG+uSNLmNdo+HrQHKqWeDyxjJFoWqwVvf40370neGRrv2xbeJhHZUuNdKYQ3VyRpR3vQzhORg5RSfwskbR+iZbGCeH3J+43G+460XLjSJCJbFcOb86DNAxglIv0DaJ8NJG0fEbmNaFmsIN5RgeT9WkS6i8i7+vHmjpLbSOHWryu6eH/bH1QpBf3Dm0VkgH5inX7MLyJyiFLqaQdtTidtb6JlsYribRSRARqvb8LqK52872l3ddpgJ413Of3YnJjY1n/JovqYdpCVtCIis6RwnvZJB22dHlIfLyJ3SMvlfETLYi1cDRbeMVKYSVZSmFAyeL+Qwo0VX7OCNS8inUXkGb2nFgAogxMi0lFEdvD8gz+IyBvW46zRNZSIfCSF29LUC6/9ZLFCZa5bhxTO4brVrIPxCxH5WFpWKpo/NxORlfVjVU4phQJ69Z2I7CYtJ4YNwvVF5GV3VYeJe6XUK3p8/rX+xfJsIxZrIbTmMth+SqkbpWU1on0mpwnAOClcB2AOO82aib2UUq+a5+UMQn28+p0suKojLy1Lsp50Twzr59Urpabq8TnxslhhtH2VUrdrMy7aZn0DdrM60QyVzerEV8zhqVjHsWIthp4phfWUb0rLesomEdlcCqs6VnHwNulf5G2dvN8QL4sVRNtgzRO5qxN7ycKrEw9USv1dG/vN1ALncSNODNurOlYO4J3KYTOL5R0em6Rt9KD1rU6cK56FTl64AbxTZcFVHd4Tw07y9mDysoj2N7S3eZLWLHQaIwsvdDJonwttYeJdq+ycGPat6tha412ReFmsSLRu0pqFTqNFpK8svNDpYL3QqSG071Dw6iDnxHB3EZkmLas68tKyqmOFAN63iJdVg2jN1XD9LbRNHrS3yMKrE+drtE/b2BPBDeB9z0nezhrv8hF4ZxAvq0aStk6jHVME7U0iMtCD9hCl1FNxdviLvAOGs6qju4j8W/9yZj3ltiLyuLUky4e3O/Gyaihpi6G9UUROtNAqKSwpPlQp9USx4XEiuA7e6Rrh+w7e7TXeZe31lExeVo0l7YAItNeLyEkO2kaN9vGo4XFiuA7ezzXeDxy8O4jIFADLmAUdDt43mbysKp6IGqCUujUwe5wH8BcROcWD9jCl1JSkG2Anuq+yhfdTKSyG/tDBu5PGu3QAbzUlr9KvL6dvhJ2mL17oURm0odnja0XkVAdtXkQOV0pNLtuu9dbd6NcB8KG1g7y5s/uLAJbUj7Gv+TW7GWwDYIb1vCzevX4A+26b+k6WdzJotn7v/vr1NFivUVl9/c/Obh/N+vuDbRNJq1VPspL3EwDdpbAb93rSsmdsFxF5DMB+eg+VnFKq2R42A+ghIk+KyIr6eXUZ64MrAFgjpSOHJn0OntV+E1F1IjKwSNI2AbhSRIZ6kvZIpdRDbUla1dZPT414fRF5RkTW0b+Y2S/3BSkskP4Nr/mU0S+sk4g8ISIrZRBvGjePNjObH4vIZvpwRekrwFKTuLrPdJXCVqDNUqIN1iuAdrRnIqpO9+0rRORsBy1E5Ail1MSyDY9jDH02APCJZ9j8HIDFI4bNMzM6bE5rfWxtOpWq490MD5Xt4fGAiOHx5Z7hcROAw9syPG715FTEsPlDPWv8mTNhtYeITAawWMRs88wMTlghZV95609W6ZM2JyKDrKT1DY8vE5FzZcG7yEBEjlFKTShV0pZkiKLx1iul3tcIpzt49xSRR4rgfUPPNmcNr0rxF6v0w+NBSqlRgeFxHsClInKegzYnIscqpe4v5fC4ZMcWGmGdUuo/UjhV5OLdW0QeBrBoleA1DZrWL1bpRlRRaJsAXCIiwx20SqO9t+LHtDGOYcw4fzMA0z3HvE8BWLTIMW/nDJ8qSkt9yWPckhzTmv43yD02dY5pL3aOac1rOq5Ux7RulfwvtBJ0mj5V9IyIrCotp4q6icgkAAcrpeZ7ThW9DmBfKZwqWiGFs83mBl5fishsa7YwTb/bdIZlyZL2RKXULUWS9kIRuUD3U3t43EspNU6vpGrMzitv+WTdQieAm7xTAHSISN40zjY32p/CrKpL3CRJOzKQtL3bK2nLPWzeEsDXHryPAVhEvxk+vNtaePMpgzs4041DuFFoT4xAe34AbR/984asN5R5oVsB+MaDd3IE3s4AZqUoeQm3OuH60DYE+vJwqz/aaPtWVZ9wFlv48D4MoCFm8jYRLuGWM2mdvnheIGn7V2V/sF54J2fW2EB4CEB9EbzbpSR5Cbe64CZJ2nOcpG0KraSqVrzuxJPB8GAE3m1TgJdwqweujXZwRNIOC6AdVBP9IJCgeQvERAB1KU5ewq0OuEnQnhlAW1t9wEE425O8E2LgnV0hvISbfbhJ0A4hWv8bsz2Abz147/Pd0SEFyUu42YZroz0pgLZB/3l6AO3JVX1MmwDvzgC+9wyb7zWpG0je7Z3hNuESblvRmr51WgDt6Wz3Bd+oXQD84MF7t4VXBfCWc9hMuNmE60PbEEjaUwJoh7DN/Xi7BPCO0z8vhrdcw2bCzR7cZs8wN5S0JwXQDmV7F8e7O4AfPXjHxsBbjuQl3GzBbY46NrX60GAHrWnrYWzreHi7ApjjmbC6IwLvDmXAS7jZgRsnac3weGAgac9mOyfDu6eF1/70uz0B3jzh1izcJMPjAYGkPZdt3Dq8ewH42YN3TAy837ZT8hJu+uEmQdsvgPY8tm/b8O4NYK4H7+gIvDu207CZcNMN10Z7SgTaPtbvYPetEWzb0uDtFsA7ynSGInhLnbyEm164SdCeEEB7gXkcuJVLSfD2ADDPg/fmCLylHjYTbjrhJkHbK4D2QrZpaRvbzPztC2C+B+9fEyRvnnCrDq6N9tQItMcF0P6BSdu+ybtfAO8NEXh3KlHyEm664PrQhs7THouWHQnsvnMJ0ZYneXsC+MVqBNMA15fhmJdw0wM3SdIeFUD7P0Rb3uQ9AMCvHrzXJkjePOFmFq6N9rQAWvNBf6R+vNtXLiPayuA9KID3mhh4v2tl8hJu5eEmSdoj0LLxlt1H/ujrI6zy4T1EN4bbMH9uJ7yEW1m4cZLWtPFhAbRXMGnTgfdQ3ZhuA13payDnOuDvEnYgwq0c3CTD41CfuIpJmy68h2HB+9yahvpTiZOXcCsDN0nShkZhVxNtOvEeHnE8U4rkJdzyw7XRnhGRtAcG0F5DtOnGe6SVupEziEVunxMF19yWk52gde3VJSbcZs9tY0LnaUNnGq6rNrSq2vDqHdSOFpHx0rKLXrMUdia8TCk1Qjd0XikF53k7i8jjIrK0hHcJtHfr+1bStVtfVvocRGRxEVk3qkmlZVPpIUqpa+HsM2u1XU8RmSgiDdbz6kXkBqXUqTrpm02bs9KbvMcElrZdFJG8u8RMXlb57lwRNTzeVy/IibWajpV+vMdHLSaPgbepSMfK86tNX21BG3XxyU1Em228oStBRjJ5U5+0QyKStnvgcs+biTbbeE0Du9demo5xfsSn+a7Emzq0pm32CSTtKKKtruTtG3W3g0Dy7ooFbxnLqjzavQO3NLpV/zxHtNWFt18gec+L6ChdmLxlQzs0oi1CNxEcQ7TVPWzuH8B7ToxhM5O3smj3QII7f7KqL3kHWTPGdgc4O0byEm9l0HYF8JMH7Z1EW1vJ69613nSgs4i3bGgbY6LdDf7dLe4i2tpM3kT7xDh4f2zl9bysZEnbJYB2HNHWNt5TA3iHxEgBJm/b0J6Z8HTcbzs4Ei2HzcXwnk68FUPrXrFl0N4Dz4bnrNpN3tMDeKPuHOgO5VhtR7sjFrxG2qC9z0KbY+8lXtNhhgTwRt1gm8kbH23U5J+7aZtBO8GkLNGyfB1nqIPXQBwckby7MXnbjHY7LLjfk422TqPl8JgVxHtWIHlPjOh4uxNvEO2wiPduWwCzPEn7oIWWScuKxDtMd5xGB+9A4k18njYKbWcAMzxJOwl6DTnRspLgPTswbO4fMWze3Vnlw+FxGO02AbQPES2rLXhHOMlrIPaN6JBdazR5mxMsId0awDcetI8CaCBaVmvgKquDnR/A2ycG3lpKXjtpo9BuCeArD9rHACxCtKxSJe/IwLC5N/EmRrtFAO0UAB2IllXq5P1DIHl7RXTUPap82Gyjjbo8cnMAX3jQPgmgg34M0bJKjvfiAN7jajR54yStuQn6ZgCme9A+BWBRomW1N95LAniPrjG89kRUVNJuEkD7NIDFiJbV3nhNelzmwdsM4KgYw+ZqwBsHrXmvNgbwmQfts0TLqkTyXu7BmwdwRAy8czKMN84xrUG7IYBPPWj/BmBxomVVCu8VDl5zo/TDqjR57aQ917wmLHiHTIN2AwCfeNA+D2AJomVVeth8pQdvE4DfB/Ca64D3zFjyetEGknZ9AP/1oP070bLSlLxXBfAeGpG8WcGbJGnXDaB9EcBSRMtKW/Je7cHbCOBgO2kziNdGe15E0q4D4CMP2pcBLG0/lsVKE95rPXh/BXBQjOT9OYV47YmoOGjf96B9xULLpGWlFu91Dl5ovD0jknevlCWvnbTDI4bHawXQ/gPAMkTLygre6z3J+wuA/TOCNwnaNQH8x4P2VQDLEi0ra3hv9OCdD2C/iGHzXhUeNnuPaQNo1wDwngftPwEsx2NaVlbx/tUzbJ4PoEdE8u5doeS10Y6IQLsagGnW6zPHwv8HYHmiZWUVb05/f4sH7zwA3QPJ22DhLWfyeofHgYmo1QC860na1wGsQLSsakneUR68cwF0ixg2lwtvkqRdFcBUD9o3AKxItKxqw3trAO/eFcabBO3KFlp7ePwmgJWJllWtw+bbPHjnANgzBt657YDXPk87ImJ4vLIG6ibt20TLqgW8t3vw/gRg9wi8+5Q4ee2kPT8iaVfQQ2E3ad8GsArRsmoF750evD8C6FImvEnQLg/gXx607wBYlWhZtYZ3rAfvDzHxtmXYbA+Po9AuB+A1z/B4GoDViJZVc3j1n+M9SfYDgF0i8HZrZfLaSXtBxDHtcnohhfv7TQOwBtGyah3v3Z7k/R7AzjHwJkneOGjNaGBZvWTRRftvAGsSLavW8Zqv+zx4vwOwU4nwetE6w2ODdhl9cYCL9n2iZbEWTN46APd78H4LYIcIvN0j8NpoR0agXVpfhuei/QDAOkTLYllozEINAA940MwGsH0Ab4OVvPM8eOOgrbPQvuz59z8kWhYrGu9ET/LOArBdK5LXoL0wImmX0reWcdF+BGBdomWxovHWo7A3rItoFoDOMfDOsy7eXwBtYCJqSX0TN/ff+y+A9YmWxYqPtwHAwx5MMwB0SoA36ph2CQAveP6dTwBsQLQsVuvwPuJB9Q2AbSLwHmKhrSuC9jnP3/8pgA2JlsVqPd5FAEwO4N2q2BDY/d5Bu5jeTcCHdiOiZbFKg3eKB9lXALYM4XXhOWif8fx9nwPY2Pf3sVishHj1nx0CeL8EsHkUNuvvWVRva+lDuwnRslilx9sRwBMBvJuF0DnPf9Lz/OkANiVaFqt98cbGZw23OwJ4PCl6FotVOrxxhrt1FtoOAB5r7TCbxWKVFu+zHoyfWbPCOT2x9WhgVnpLomWxyo93cb3XrG/xxHr6MZMDizi2JloWq3J4lwzgnRYYHgdXXrFYrPLjtdcaN1tXB+WdCxW2JVoWK114X3KuKso7lwYSLYuVQrzu9bR5C+0ORMtipQ+vuRjevu2Muf3NjkTLYqU/eZfV90GeS7QsVrbwrmbdMYNX+bBYGcC70LW3LBYrI8lLtNVb/w9z5Dhh8QvqygAAAABJRU5ErkJggg==" width="26" height="26" style="flex:none;display:block" alt="logo">';
 const STATN={str:'근력',dex:'민첩',int:'지식',luk:'행운',men:'정신력'};
+const diceTier=t=>t>=12?{n:'대성공',c:'b-ok'}:t>=10?{n:'극단적 성공',c:'b-ok'}:t>=7?{n:'보통 성공',c:'b-wt'}:t<=2?{n:'대실패',c:'b-no'}:{n:'실패',c:'b-no'};
 const badge=st=>`<span class="badge ${st==='승인'?'b-ok':st==='반려'?'b-no':'b-wt'}">${e(st)}</span>`;
 const ctag=o=>o.corrupted?'<span class="corrupt">[오염] </span>':'';
 function navDot(k,uid){if(k==='notices')return D.notices.some(n=>!seen(n.seenBy,uid));
@@ -260,10 +268,10 @@ if(k==='counsel'){if(adm())return D.counsel.some(c=>c.unreadAdm);return D.counse
 if(k==='board')return D.posts.some(p=>!seen(p.seenBy,uid));
 if(k==='inv')return (D.inv?.cases||[]).some(c=>c.status==='active'&&c.log.length&&((c.seenAt&&c.seenAt[uid])||0)<c.log[c.log.length-1].id);
 return false}
-const TABS={shop:[['view','상품 보기'],['manage','상품 관리',1],['sn','공지 작성',1]],messenger:[['in','받은 쪽지함'],['out','보낸 쪽지함'],['new','새 쪽지']],reports:[['list','보고서 목록'],['new','보고서 제출']],admin:[['users','사원 관리'],['an','공지사항 작성'],['bd','게시판 설정'],['mon','쪽지 모니터링'],['set','사이트 설정']]};
+const TABS={shop:[['view','상품 보기'],['craft','장비 제작'],['manage','상품 관리',1],['items','소지품 지급',1],['recipes','제작 레시피',1],['sn','공지 작성',1],['craftsn','제작 공지 작성',1]],messenger:[['in','받은 쪽지함'],['out','보낸 쪽지함'],['new','새 쪽지']],reports:[['list','보고서 목록'],['new','보고서 제출']],admin:[['users','사원 관리'],['an','공지사항 작성'],['bd','게시판 설정'],['mon','쪽지 모니터링'],['set','사이트 설정']]};
 function tabsH(){const l=(TABS[S.pg]||[]).filter(t=>!t[2]||adm());if(!l.length)return'';if(!l.some(t=>t[0]===S.tab))S.tab=l[0][0];
 return`<div class="tabs">${l.map(t=>`<button class="${t[0]===S.tab?'on':''}" onclick="S.tab='${t[0]}';R()">${t[1]}</button>`).join('')}</div>`}
-const go=p=>{S.pg=p;S.tab='';S.counselOpen=null;S.postOpen=null;S.editPost=null;S.invOpen=null;R()};
+const go=p=>{S.pg=p;S.tab='';S.counselOpen=null;S.postOpen=null;S.editPost=null;S.invOpen=null;S.cnAdm=false;S.bdAdm=false;R()};
 function login(){const u=U(v('lid'));
 if(!u||u.pw!==$('#lpw').value){$('#lerr').textContent='아이디 또는 비밀번호가 올바르지 않습니다.';return false}
 if(u.off){$('#lerr').textContent=u.reason;return false}
@@ -301,18 +309,31 @@ n.t=t;n.b=b;n.imp=$('#en_i').checked?1:0;n.corrupted=$('#en_c').checked?1:0;n.co
 function delN(id){if(!need()||!confirm('삭제할까요?'))return;D.notices=D.notices.filter(x=>x.id!==id);save();R()}
 P.profile=()=>{const m=me(),r=[['이름',e(m.name)+(adm()?MK():'')],['소속 부서',e(m.dept)||'-'],['소속 팀',e(m.team)||'-'],['가면(호칭)',e(m.alias)||'-'],['직급',e(m.rank)||'-'],['보유 포인트',m.pts+' P']];
 const statCard=m.stats?card('능력치 (조사 중 2d6+능력치로 판정에 사용됩니다)',`<table class="kv">${Object.keys(STATN).map(k=>`<tr><th>${STATN[k]}</th><td>+${m.stats[k]??0}</td></tr>`).join('')}</table>`):'';
-return card('개인 프로필',`<table class="kv">${r.map(x=>`<tr><th>${x[0]}</th><td>${x[1]}</td></tr>`).join('')}</table>`+empty('개인 정보는 관리자가 입력·수정합니다. 수정 요청은 관리자에게 문의 바랍니다.'))+statCard};
-P.shop=()=>{const t=S.tab;if(t==='manage'&&adm())return shopMg();if(t==='sn'&&adm())return shopSn();
+const itemsCard=card(`소지품 (${(m.items||[]).length})`,itemsTable(m));
+return card('개인 프로필',`<table class="kv">${r.map(x=>`<tr><th>${x[0]}</th><td>${x[1]}</td></tr>`).join('')}</table>`+empty('개인 정보는 관리자가 입력·수정합니다. 수정 요청은 관리자에게 문의 바랍니다.'))+statCard+itemsCard};
+P.shop=()=>{const t=S.tab;if(t==='manage'&&adm())return shopMg();if(t==='items'&&adm())return shopItems();if(t==='recipes'&&adm())return shopRecipes();if(t==='sn'&&adm())return shopSn();if(t==='craftsn'&&adm())return snAdminCard('craftSn','장비 제작 공지');if(t==='craft')return shopCraft();
 const pl=D.prods.filter(p=>p.show).sort((a,b)=>a.ord-b.ord);
 const sns=[...D.sn].sort((a,b)=>b.d.localeCompare(a.d));const latest=sns[0];
 const noticeCard=latest?card('복지몰 공지',`<div style="white-space:pre-wrap;line-height:1.6">${e(latest.t)}</div><div class="mu" style="margin-top:10px;font-size:12px">${fmt(latest.d)}${latest.edited?' · <span class="rd">수정됨</span> ('+fmt(latest.editedAt)+')':''}</div>`+(sns.length>1?`<button class="btn" style="margin-top:12px" onclick="viewSnList()">지난 공지 ${sns.length-1}건 보기</button>`:'')):card('복지몰 공지',empty('등록된 공지가 없습니다.'));
 return noticeCard+`<div class="grid">${pl.map(p=>`<div class="prod"><b>${e(p.n)}</b><p>${e(p.d)}</p><div><b>${p.p} P</b><button class="btn" ${p.sold?'disabled':''} onclick="buy(${p.id})">${p.sold?'품절':'구매'}</button></div></div>`).join('')}</div>`};
 function viewSnList(){const sns=[...D.sn].sort((a,b)=>b.d.localeCompare(a.d));
 modal('복지몰 공지 목록','',sns.map(n=>`<div style="padding:10px 0;border-bottom:1px solid var(--ln)"><div style="white-space:pre-wrap">${e(n.t)}</div><div class="mu" style="margin-top:6px;font-size:12px">${fmt(n.d)}${n.edited?' · <span class="rd">수정됨</span> ('+fmt(n.editedAt)+')':''}</div></div>`).join(''))}
+const snList2=field=>D[field]||(D[field]=[]);
+function noticeBlock(field,title){const sns=[...snList2(field)].sort((a,b)=>b.d.localeCompare(a.d));const latest=sns[0];
+if(!latest)return card(title,empty('등록된 공지가 없습니다.'));
+return card(title,`<div style="white-space:pre-wrap;line-height:1.6">${e(latest.t)}</div><div class="mu" style="margin-top:10px;font-size:12px">${fmt(latest.d)}${latest.edited?' · <span class="rd">수정됨</span> ('+fmt(latest.editedAt)+')':''}</div>`+(sns.length>1?`<button class="btn" style="margin-top:12px" onclick="viewSnList2('${field}','${title}')">지난 공지 ${sns.length-1}건 보기</button>`:''))}
+function viewSnList2(field,title){const sns=[...snList2(field)].sort((a,b)=>b.d.localeCompare(a.d));
+modal(title+' 목록','',sns.map(n=>`<div style="padding:10px 0;border-bottom:1px solid var(--ln)"><div style="white-space:pre-wrap">${e(n.t)}</div><div class="mu" style="margin-top:6px;font-size:12px">${fmt(n.d)}${n.edited?' · <span class="rd">수정됨</span> ('+fmt(n.editedAt)+')':''}</div></div>`).join(''))}
+function snAdminCard(field,title){const list=snList2(field);
+return`<div class="two">${card('등록된 '+title,list.length?tbl(['내용','등록일','관리'],[...list].sort((a,b)=>b.d.localeCompare(a.d)).map(n=>`<tr><td class="l">${e(n.t)}${n.edited?' <span class="mu" style="font-size:11px">(수정됨)</span>':''}</td><td>${fmt(n.d)}</td><td class="nw"><button class="btn" onclick="editSn2('${field}',${n.id})">수정</button> <button class="btn dg" onclick="delSn2('${field}',${n.id})">삭제</button></td></tr>`)):empty('등록된 공지가 없습니다.'))}<div class="card side"><h3>${title} 작성</h3><label>공지 내용 (필수)</label><textarea id="sn2_c"></textarea><button class="pri" onclick="addSn2('${field}')">등록</button></div></div>`}
+function addSn2(field){if(!need())return;const t=($('#sn2_c')?.value||'').trim();if(!t)return alert('공지 내용을 입력하세요.');
+snList2(field).push({id:nx(snList2(field)),t,d:now()});save();R()}
+function editSn2(field,id){if(!need())return;const n=snList2(field).find(x=>x.id===id),t=prompt('공지 내용',n.t);if(!t)return;n.t=t;n.edited=1;n.editedAt=now();save();R()}
+function delSn2(field,id){if(!need()||!confirm('삭제할까요?'))return;D[field]=snList2(field).filter(x=>x.id!==id);save();R()}
 function buy(id){const p=D.prods.find(x=>x.id===id),u=me(),c=u.buys[id]||0;
 if(p.sold)return alert('품절된 상품입니다.');if(p.lim&&c>=p.lim)return alert(`1인당 구매 한도(${p.lim}개)를 초과했습니다.`);
 if(u.pts<p.p)return alert('포인트가 부족합니다.');if(!confirm(`${p.n}을(를) ${p.p} P에 구매할까요?`))return;
-u.pts-=p.p;u.buys[id]=c+1;D.log.push({u:u.id,a:-p.p,why:'복지몰 구매: '+p.n,d:now()});save();R()}
+u.pts-=p.p;u.buys[id]=c+1;u.items=u.items||[];u.items.push({id:nx(u.items),name:p.n,desc:p.d,origin:u.id});D.log.push({u:u.id,a:-p.p,why:'복지몰 구매: '+p.n,d:now()});save();R()}
 let cClicks=0,cTimer=null,cosmicHideToday=false;
 function logoClick(){cClicks++;clearTimeout(cTimer);cTimer=setTimeout(()=>{cClicks=0},1100);
 if(cClicks>=5){cClicks=0;clearTimeout(cTimer);tryCosmic()}}
@@ -320,13 +341,13 @@ function tryCosmic(){const m=me();if(!m||cosmicHideToday)return;if(S.pg!=='shop'
 function cosmicModal(){const A=adm(),u=me(),cb=(u&&u.cbuys)||{};
 const rows=D.cprods.map(p=>{const c=cb[p.id]||0,limHit=p.lim&&c>=p.lim;return`<div class="prod"><b>${e(p.n)}</b><p>${e(p.d)}${p.lim?` <span class="mu">(1인당 한도 ${p.lim}개)</span>`:''}</p><div><b>${p.p} P</b><button class="btn" ${p.sold||limHit?'disabled':''} onclick="buyC(${p.id})">${p.sold?'품절':limHit?'한도 도달':'거래'}</button></div></div>`}).join('');
 const mg=A?`<hr style="margin:20px 0;border:none;border-top:1px dashed #3a3f66"><h4 style="margin:0 0 10px">상품 관리</h4>${D.cprods.map(p=>`<div class="mu" style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;flex-wrap:wrap"><span>${e(p.n)} · ${p.p} P · 한도 ${p.lim||'무제한'} · ${p.sold?'품절':'판매중'}</span><span><button class="btn" onclick="soldC(${p.id})">${p.sold?'품절 해제':'품절 처리'}</button> <button class="btn" onclick="editC(${p.id})">수정</button> <button class="btn dg" onclick="delC(${p.id})">삭제</button></span></div>`).join('')}<div style="margin-top:10px">${fld('ccn','물건 이름')}<label>설명</label><textarea id="ccd" style="min-height:70px"></textarea>${fld('ccp','가격 (P)','number')}${fld('ccl','1인당 거래 한도 (비우면 무제한)','number')}<button class="btn" style="margin-top:8px" onclick="addC()">추가</button></div>`:'';
-modal('','',`<div class="cosmic-sub">✦ 신년 감사 할인 중~~!!! ✦</div><div class="cosmic-title">&lt;우주 쇼핑몰&gt;</div><div class="cosmic-tag">✱외계에서 온 멋진 물건✱~~!!</div><div class="cosmic-intro">&gt;&gt; 나는 물건을 본다</div><div class="grid" style="margin-top:16px">${rows||'<p class="mu">거래 가능한 물건이 없습니다.</p>'}</div>${mg}<label class="cosmic-hide"><input type="checkbox" onchange="cosmicHideToday=this.checked">오늘 하루 보지 않기</label>`);
+modal('','',`<div class="cosmic-sub">✦ 매우 놀랍다 가격! ✦</div><div class="cosmic-title">&lt;우주 쇼핑몰&gt;</div><div class="cosmic-tag">✱외계에서 온 멋진 물건✱~~!!</div><div class="cosmic-intro">&gt;&gt; 나는 물건을 본다</div><div class="grid" style="margin-top:16px">${rows||'<p class="mu">거래 가능한 물건이 없습니다.</p>'}</div>${mg}<label class="cosmic-hide"><input type="checkbox" onchange="cosmicHideToday=this.checked">오늘 하루 보지 않기</label>`);
 document.querySelector('.ov .md')?.classList.add('cosmic')}
 function buyC(id){const p=D.cprods.find(x=>x.id===id),u=me();if(!p||!u)return;
 u.cbuys=u.cbuys||{};const c=u.cbuys[id]||0;
 if(p.sold)return alert('품절된 물건입니다.');if(p.lim&&c>=p.lim)return alert(`1인당 거래 한도(${p.lim}개)를 초과했습니다.`);
 if(u.pts<p.p)return alert('포인트가 부족합니다.');if(!confirm(`${p.n}을(를) ${p.p} P에 거래할까요?`))return;
-u.pts-=p.p;u.cbuys[id]=c+1;D.log.push({u:u.id,a:-p.p,why:'우주 쇼핑몰 거래: '+p.n,d:now()});save();document.querySelector('.ov')?.remove();cosmicModal();R()}
+u.pts-=p.p;u.cbuys[id]=c+1;u.items=u.items||[];u.items.push({id:nx(u.items),name:p.n,desc:p.d,origin:u.id});D.log.push({u:u.id,a:-p.p,why:'우주 쇼핑몰 거래: '+p.n,d:now()});save();document.querySelector('.ov')?.remove();cosmicModal();R()}
 function addC(){if(!need())return;const n=$('#ccn').value.trim(),p=+$('#ccp').value;if(!n||!(p>=0)||$('#ccp').value==='')return alert('이름과 가격은 필수입니다.');
 D.cprods.push({id:nx(D.cprods),n,d:$('#ccd').value.trim(),p,lim:+$('#ccl').value||0,sold:0});save();document.querySelector('.ov')?.remove();cosmicModal()}
 function editC(id){if(!need())return;const p=D.cprods.find(x=>x.id===id),n=prompt('물건 이름',p.n);if(!n)return;const d=prompt('설명',p.d);if(d===null)return;const pr=prompt('가격 (P)',p.p);if(pr===null||isNaN(+pr)||pr==='')return;const l=prompt('1인당 거래 한도 (0=무제한)',p.lim||0);if(l===null||isNaN(+l))return;
@@ -343,6 +364,60 @@ const shopSn=()=>`<div class="two">${card('등록된 공지',D.sn.length?tbl(['�
 function addS(){if(!need())return;const t=v('sc');if(!t)return alert('공지 내용을 입력하세요.');D.sn.push({id:nx(D.sn),t,d:now()});save();R()}
 function editS(id){if(!need())return;const n=D.sn.find(x=>x.id===id),t=prompt('공지 내용',n.t);if(!t)return;n.t=t;n.edited=1;n.editedAt=now();save();R()}
 function delS(id){if(!need()||!confirm('삭제할까요?'))return;D.sn=D.sn.filter(x=>x.id!==id);save();R()}
+function itemsTable(m){const items=m.items||[];
+return items.length?tbl(['이름','효능','관리'],items.map(it=>`<tr><td class="l">${e(it.name)}${it.origin&&it.origin!==m.id?` <span class="mu" style="font-size:11px">(원 소유자: ${e(nm(it.origin))})</span>`:''}</td><td class="l">${e(it.desc)}</td><td><button class="btn" onclick="openTransfer(${it.id})">양도</button></td></tr>`)):empty('보유한 소지품이 없습니다.')}
+function shopCraft(){const m=me(),items=m.items||[],cost=D.craftCost||500;
+const formHtml=items.length>=2?`<div class="mu" style="margin-bottom:10px">소지품 두 개를 선택해 제작하면 새로운 장비가 만들어집니다. 조합에 따라 전혀 다른 이름과 효능의 결과물이 나올 수 있습니다. 사용한 두 소지품은 사라지지 않고 그대로 보유합니다. (기본 비용 ${cost} P, 특정 조합은 비용이 다를 수 있습니다)</div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><select id="cr_a">${items.map(it=>`<option value="${it.id}">${e(it.name)}</option>`).join('')}</select><span class="mu">+</span><select id="cr_b">${items.map(it=>`<option value="${it.id}">${e(it.name)}</option>`).join('')}</select><button class="pri" style="margin-top:0" onclick="craftItem()">제작하기</button></div>`:empty(`소지품이 2개 이상 있어야 장비를 제작할 수 있습니다. (현재 ${items.length}개 보유) 관리자에게 아이템 지급을 요청하거나, 다른 사원에게서 소지품을 양도받아 보세요.`);
+return noticeBlock('craftSn','장비 제작 공지')+card('커스텀 장비 제작',formHtml)+card(`내 소지품 (${items.length})`,itemsTable(m))}
+function craftItem(){const m=me(),aId=+v('cr_a'),bId=+v('cr_b');if(!aId||!bId||aId===bId)return alert('서로 다른 소지품 두 개를 선택하세요.');
+const a=(m.items||[]).find(x=>x.id===aId),b=(m.items||[]).find(x=>x.id===bId);if(!a||!b)return alert('소지품을 찾을 수 없습니다.');
+const rec=findRecipe(a.name,b.name);
+const cost=(rec&&rec.price)?rec.price:(D.craftCost||500);
+if(m.pts<cost)return alert('포인트가 부족합니다.');
+const outName=rec?rec.outName:`${a.name} + ${b.name}`;
+const outDesc=rec?rec.outDesc:`[${a.name}] ${a.desc}\n[${b.name}] ${b.desc}`;
+if(!confirm(`${a.name}와(과) ${b.name}의 정보를 사용해 ${cost} P로 새 장비를 제작할까요? 두 소지품은 그대로 돌려받습니다.`))return;
+m.pts-=cost;
+const newItem={id:nx(m.items),name:outName,desc:outDesc,origin:S.uid};
+if(!rec)newItem.craftedFrom={a:a.name,b:b.name};
+m.items.push(newItem);
+D.log.push({u:m.id,a:-cost,why:`커스텀 장비 제작: ${newItem.name}`,d:now()});
+if(!rec){D.craftLog=D.craftLog||[];const entry=D.craftLog.find(c=>{const ca=c.a.trim().toLowerCase(),cb=c.b.trim().toLowerCase(),na=a.name.trim().toLowerCase(),nb=b.name.trim().toLowerCase();return(ca===na&&cb===nb)||(ca===nb&&cb===na)});
+if(entry)entry.count=(entry.count||1)+1;else D.craftLog.push({id:nx(D.craftLog),a:a.name,b:b.name,count:1})}
+save();R();alert('새 장비가 제작되었습니다: '+newItem.name)}
+function openTransfer(itemId){const m=me(),it=(m.items||[]).find(x=>x.id===itemId);if(!it)return;
+const targets=D.users.filter(u=>u.id!==S.uid&&!u.off);
+modal('소지품 양도','',`<div style="max-width:420px"><p>${e(it.name)} 을(를) 양도합니다. 받은 사람은 이 소지품을 자신의 장비 제작에 사용할 수 있게 됩니다.</p><label>받는 사람</label><select id="tr_to"><option value="">선택하십시오</option>${targets.map(u=>`<option value="${u.id}">${e(u.name)} (${e(u.dept)})</option>`).join('')}</select><button class="pri" onclick="transferItem(${itemId})">양도하기</button></div>`)}
+function transferItem(itemId){const m=me(),to=v('tr_to');if(!to)return alert('받는 사람을 선택하세요.');
+const idx=(m.items||[]).findIndex(x=>x.id===itemId);if(idx<0)return;
+const it=m.items[idx],target=U(to);if(!target)return;
+m.items.splice(idx,1);target.items=target.items||[];
+target.items.push({...it,id:nx(target.items),origin:it.origin||S.uid});
+save();document.querySelector('.ov')?.remove();R();alert(`${target.name}님에게 ${it.name}을(를) 양도했습니다.`)}
+function findRecipe(aName,bName){const na=(aName||'').trim().toLowerCase(),nb=(bName||'').trim().toLowerCase();
+return(D.recipes||[]).find(r=>{const ra=(r.a||'').trim().toLowerCase(),rb=(r.b||'').trim().toLowerCase();return(ra===na&&rb===nb)||(ra===nb&&rb===na)})}
+function shopRecipes(){const rs=D.recipes||[];
+const pending=(D.craftLog||[]).filter(c=>!findRecipe(c.a,c.b)).sort((x,y)=>(y.count||0)-(x.count||0));
+const pendingCard=card('아직 레시피가 없는 실제 제작 조합',pending.length?tbl(['재료 1','재료 2','제작된 횟수','관리'],pending.map(c=>`<tr><td class="l">${e(c.a)}</td><td class="l">${e(c.b)}</td><td>${c.count||1}</td><td><button class="btn" onclick="quickRecipe(${c.id})">레시피 만들기</button></td></tr>`)):empty('사원들이 레시피 없이(자동 합성으로) 제작한 조합이 아직 없습니다. 사전에 모든 조합을 미리 등록해 둘 필요는 없습니다 — 실제로 누군가 시도한 조합만 여기에 쌓이니, 마음에 드는 것만 골라 나중에 고유한 이름과 효능으로 바꿔주시면 됩니다.'));
+return`<div class="two">${pendingCard+card('등록된 제작 레시피',rs.length?tbl(['재료 1','재료 2','결과물','가격','관리'],rs.map(r=>`<tr><td class="l">${e(r.a)}</td><td class="l">${e(r.b)}</td><td class="l"><b>${e(r.outName)}</b><div class="mu" style="font-size:12px">${e(r.outDesc)}</div></td><td>${r.price?r.price+' P':'기본 비용'}</td><td><button class="btn dg" onclick="delRecipe(${r.id})">삭제</button></td></tr>`)):empty('등록된 레시피가 없습니다. 레시피가 없는 조합은 두 소지품의 이름·효능을 그대로 합친 결과물이 만들어집니다.'))}<div class="card side"><h3 id="rc_form_h">레시피 등록</h3><div class="mu" style="margin-bottom:10px;font-size:12px">두 재료의 이름을 정확히 입력하면, 사원이 해당 두 소지품(순서 무관)으로 제작할 때 아래 결과물이 만들어집니다.</div>${fld('rc_a','재료 1 이름 (필수)')}${fld('rc_b','재료 2 이름 (필수)')}${fld('rc_n','결과물 이름 (필수)')}<label>결과물 효능 (필수)</label><textarea id="rc_d"></textarea>${fld('rc_p','제작 비용 (P, 비우면 기본 비용 사용)','number')}<button class="pri" onclick="addRecipe()">등록</button></div></div>`}
+function matchesCombo(item,aName,bName){const na=aName.trim().toLowerCase(),nb=bName.trim().toLowerCase();
+if(item.craftedFrom){const ca=(item.craftedFrom.a||'').trim().toLowerCase(),cb=(item.craftedFrom.b||'').trim().toLowerCase();return(ca===na&&cb===nb)||(ca===nb&&cb===na)}
+return item.name===`${aName.trim()} + ${bName.trim()}`||item.name===`${bName.trim()} + ${aName.trim()}`}
+function addRecipe(){if(!need())return;const a=v('rc_a'),b=v('rc_b'),n=v('rc_n'),d=$('#rc_d').value.trim();if(!a||!b||!n||!d)return alert('재료 1·2, 결과물 이름, 효능은 필수입니다.');
+D.recipes.push({id:nx(D.recipes),a,b,outName:n,outDesc:d,price:+v('rc_p')||0});
+let upd=0;D.users.forEach(u=>(u.items||[]).forEach(it=>{if(matchesCombo(it,a,b)){it.name=n;it.desc=d;delete it.craftedFrom;upd++}}));
+save();R();alert(upd>0?`레시피가 등록되었습니다. 이미 그 조합으로 만들어진 소지품 ${upd}개도 새 이름·효능으로 함께 갱신했습니다.`:'레시피가 등록되었습니다.')}
+function delRecipe(id){if(!need()||!confirm('삭제할까요?'))return;D.recipes=D.recipes.filter(x=>x.id!==id);save();R()}
+function quickRecipe(id){const c=(D.craftLog||[]).find(x=>x.id===id);if(!c)return;
+$('#rc_a').value=c.a;$('#rc_b').value=c.b;$('#rc_n').value='';$('#rc_d').value='';$('#rc_p').value='';
+$('#rc_form_h')?.scrollIntoView({behavior:'smooth',block:'center'});$('#rc_n')?.focus()}
+function shopItems(){const rows=[];D.users.forEach(u=>(u.items||[]).forEach(it=>rows.push({...it,owner:u.id})));
+rows.sort((a,b)=>b.id-a.id);
+return`<div class="two">${card('전체 소지품 현황',rows.length?tbl(['소유자','이름','효능','관리'],rows.map(it=>`<tr><td>${e(nm(it.owner))}</td><td class="l">${e(it.name)}</td><td class="l">${e(it.desc)}</td><td><button class="btn dg" onclick="removeItem('${it.owner}',${it.id})">삭제</button></td></tr>`)):empty('지급된 소지품이 없습니다.'))}<div class="card side"><h3>소지품 지급</h3><label>대상 사원</label><select id="gi_to">${D.users.map(u=>`<option value="${u.id}">${e(u.name)} (${u.id})</option>`).join('')}</select>${fld('gi_n','아이템 이름 (필수)')}<label>효능 설명 (필수)</label><textarea id="gi_d"></textarea><button class="pri" onclick="grantItem()">지급</button><h4 style="margin-top:20px">제작 비용 설정</h4>${fld('gi_cost','장비 제작 비용 (P)','number',`value="${D.craftCost||500}"`)}<button class="btn" onclick="saveCraftCost()">저장</button></div></div>`}
+function grantItem(){if(!need())return;const to=v('gi_to'),n=v('gi_n'),d=$('#gi_d').value.trim();if(!to||!n||!d)return alert('대상, 이름, 효능 설명을 입력하세요.');
+const u=U(to);u.items=u.items||[];u.items.push({id:nx(u.items),name:n,desc:d,origin:to});save();R();alert('지급되었습니다.')}
+function removeItem(owner,id){if(!need()||!confirm('삭제할까요?'))return;const u=U(owner);u.items=(u.items||[]).filter(x=>x.id!==id);save();R()}
+function saveCraftCost(){if(!need())return;D.craftCost=+v('gi_cost')||500;save();R();alert('저장되었습니다.')}
 P.points=()=>{const m=me(),mine=D.log.filter(l=>l.u===m.id).reverse();
 const hist=`<div class="bal"><span>현재 잔액</span>${m.pts} P</div>`+(mine.length?tbl(['일시','내용','증감'],mine.map(l=>`<tr><td>${fmt(l.d)}</td><td class="l">${e(l.why)}</td><td class="${l.a<0?'rd':''}">${l.a>0?'+':''}${l.a} P</td></tr>`)):empty('포인트 내역이 없습니다.'));
 if(!adm())return card('내 포인트 내역',hist);
@@ -373,7 +448,7 @@ modal(r.t,`작성자: ${e(nm(r.who))} · 발생 일시: ${fmt(r.at)}${r.place?' 
 function addR(){const t=v('rt'),b=v('rb');if(!t||!b)return alert('제목과 내용은 필수입니다.');D.reports.push({id:nx(D.reports),t,who:S.uid,at:v('ra'),place:v('rp'),body:b,st:'대기',d:now(),seenBy:[S.uid]});save();S.tab='list';R()}
 function stR(id,st){if(!need())return;const r=D.reports.find(x=>x.id===id);r.st=st;r.seenBy=[S.uid];save();R()}
 function delR(id){if(!need()||!confirm('삭제할까요?'))return;D.reports=D.reports.filter(x=>x.id!==id);save();R()}
-P.counsel=()=>{if(adm())return counselAdminList();return counselMine()};
+P.counsel=()=>{if(adm())return S.cnAdm?snAdminCard('counselSn','상담 공지')+`<button class="btn" style="margin-top:12px" onclick="S.cnAdm=false;R()">목록으로</button>`:counselAdminList();return counselMine()};
 const counselLabel=()=>D.menus.find(x=>x.k==='counsel')?.n||'상담';
 const counselVars=()=>{const c=D.counselColors||{};return `--cc-bg1:${c.bg1||'#fff8f0'};--cc-bg2:${c.bg2||'#ffead2'};--cc-bd:${c.bd||'#ffdcb0'};--cc-acc:${c.acc||'#c9832f'};--cc-txt:${c.txt||'#8a4b16'};--cc-emp:${c.emp||'#ffb46e'};--cc-empt:${c.empt||'#3a2410'};--cc-adm:${c.adm||'#ffffff'};--cc-admt:${c.admt||'#5a3a1a'}`};
 function counselMine(){const td=today();
@@ -384,13 +459,13 @@ if(cur){box=counselChatBox(cur,false)}
 else{box=`<div class="counsel-wrap" style="${counselVars()}"><div class="counsel-intro">${ICON.counsel}<div style="white-space:pre-wrap;margin-top:8px">${e(D.counselIntro)}</div><div style="margin-top:14px"><button class="pri" onclick="startCounsel()">상담 시작하기</button></div></div></div>`}
 const past=mine.filter(c=>c.date!==td);
 const pastList=past.length?card('지난 상담 기록',tbl(['날짜','대화 수'],past.map(c=>`<tr><td>${c.date}</td><td>${c.msgs.length}건</td></tr>`))):'';
-return card(e(counselLabel()),box)+pastList}
+return noticeBlock('counselSn','상담 공지')+card(e(counselLabel()),box)+pastList}
 function counselAdminList(){const td=today();
 if(S.tab==='chat'&&S.counselOpen){const c=D.counsel.find(x=>x.id===S.counselOpen);
 if(c)return card(`${e(nm(c.uid))}님과의 상담 (${c.date})`,counselChatBox(c,true)+`<button class="btn" style="margin-top:12px" onclick="S.counselOpen=null;S.tab='list';R()">목록으로</button>`)}
 const sorted=[...D.counsel].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
 const rows=sorted.map(c=>`<tr><td class="l">${c.unreadAdm?'<span class="udot"></span>':''}${e(nm(c.uid))}</td><td>${c.date}</td><td>${c.msgs.length}건</td><td><button class="btn" onclick="S.counselOpen=${c.id};S.tab='chat';R()">${c.date===td?'입장':'열람'}</button></td></tr>`);
-return card(e(counselLabel())+' · 상담 목록',sorted.length?tbl(['사원','날짜','대화 수','관리'],rows):empty('접수된 상담이 없습니다.'))}
+return card(e(counselLabel())+' · 상담 목록',`<button class="btn" style="margin-bottom:12px" onclick="S.cnAdm=true;R()">상담 공지 관리</button>`+(sorted.length?tbl(['사원','날짜','대화 수','관리'],rows):empty('접수된 상담이 없습니다.')))}
 function counselChatBox(c,isAdmin){if(isAdmin){if(c.unreadAdm){c.unreadAdm=0;save()}}else{if(c.unreadEmp){c.unreadEmp=0;save()}}
 const msgsHtml=c.msgs.length?c.msgs.map(m=>`<div class="cmsg ${m.who}"><span class="who">${m.who==='emp'?e(nm(c.uid)):e(D.counselName)}</span>${e(m.b)}</div>`).join(''):'<p class="mu" style="text-align:center">아직 대화가 없습니다. 편하게 이야기를 건네보세요.</p>';
 return `<div class="counsel-wrap" style="${counselVars()}"><div class="counsel-msgs" id="cmsgs">${msgsHtml}</div><div style="display:flex;gap:8px"><input id="cinput" style="flex:1" placeholder="이야기를 들려주세요..." oninput="counselDraft=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();sendCounsel(${c.id},${isAdmin})}"><button class="btn" style="flex:none;white-space:nowrap" onclick="sendCounsel(${c.id},${isAdmin})">전송</button></div></div>`}
@@ -406,10 +481,11 @@ const authorLabel=uid=>{const real=e(nm(uid));if(!D.boardAnon)return real;return
 const authorInitial=uid=>(D.boardAnon&&!adm())?'익':(nm(uid)||'?').charAt(0);
 P.board=()=>{if(!D.boards.length)return card('게시판',empty('등록된 게시판이 없습니다.')+(adm()?empty('게시판은 관리자 탭에서 추가할 수 있습니다.'):''));
 if(!S.brd||!D.boards.find(b=>b.id===S.brd))S.brd=D.boards[0].id;
+if(adm()&&S.bdAdm)return snAdminCard('boardSn','게시판 공지')+`<button class="btn" style="margin-top:12px" onclick="S.bdAdm=false;R()">게시판으로</button>`;
 const boardNav=D.boards.length>1?`<div class="tabs">${D.boards.map(b=>`<button class="${b.id===S.brd?'on':''}" onclick="S.brd=${b.id};S.postOpen=null;S.tab='';R()">${e(b.n)}</button>`).join('')}</div>`:'';
 if(S.tab==='new')return boardNav+postForm(S.brd,S.editPost);
 if(S.postOpen){const p=D.posts.find(x=>x.id===S.postOpen);if(p)return boardNav+postDetail(p)}
-return boardNav+postList(S.brd)};
+return boardNav+noticeBlock('boardSn','게시판 공지')+postList(S.brd)};
 function newPostClick(){S.tab='new';S.editPost=null;postImgDraft=null;R()}
 function editPostClick(id){const p=D.posts.find(x=>x.id===id);S.tab='new';S.editPost=id;postImgDraft=p?p.img||null:null;R()}
 function feedCard(p){const liked=(p.likes||[]).includes(S.uid);
@@ -421,8 +497,9 @@ ${p.img?`<img class="fpost-img" src="${p.img}" onclick="openPost(${p.id})">`:''}
 function postList(bid){const canWrite=!!D.boardWriteAll||adm();
 const ps=D.posts.filter(p=>p.boardId===bid).sort((a,b)=>b.d.localeCompare(a.d));
 const writeBtn=canWrite?`<button class="pri" onclick="newPostClick()">글쓰기</button>`:'';
+const snBtn=adm()?` <button class="btn" onclick="S.bdAdm=true;R()">게시판 공지 관리</button>`:'';
 const feed=ps.length?`<div class="feed">${ps.map(feedCard).join('')}</div>`:empty('등록된 글이 없습니다.');
-return card(e(bdName(bid)),`<div style="margin-bottom:14px">${writeBtn}</div>${feed}`)}
+return card(e(bdName(bid)),`<div style="margin-bottom:14px">${writeBtn}${snBtn}</div>${feed}`)}
 function openPost(id){const p=D.posts.find(x=>x.id===id);markSeen(p,S.uid);save();S.postOpen=id;R()}
 function postForm(bid,editId){const p=editId?D.posts.find(x=>x.id===editId):null;
 return card(p?'게시글 수정':'새 글 작성',`<div style="max-width:560px">${fld('pf_t','제목 (필수)','text',p?`value="${e(p.title)}"`:'')}<label>내용 (필수)</label><textarea id="pf_b">${p?e(p.body):''}</textarea><label>사진 첨부 (선택)</label><input type="file" id="pf_img" accept="image/*" onchange="handlePostImg(event)"><img id="pf_imgprev" src="${postImgDraft||''}" style="max-width:100%;border-radius:10px;margin-top:8px;display:${postImgDraft?'block':'none'}"><button type="button" id="pf_imgrm" class="btn" style="margin-top:6px;display:${postImgDraft?'inline-block':'none'}" onclick="removePostImg()">사진 제거</button><div style="margin-top:14px"><button class="pri" onclick="savePost(${bid},${editId||'null'})">${p?'수정 완료':'등록'}</button> <button class="btn" onclick="S.tab='';R()">취소</button></div></div>`)}
@@ -464,7 +541,8 @@ function invCaseView(c){const A=adm(),uid=S.uid,isP=c.slots.includes(uid),filled
 const slotsHtml=c.slots.map((s,i)=>s?`<div class="prod" style="flex:0 0 150px"><b>${e(nm(s))}</b>${(s===uid||A)?`<div style="margin-top:8px"><button class="btn ${s!==uid?'dg':''}" onclick="releaseSlot(${c.id},${i})">${s===uid?'자리 비우기':'강제 비우기'}</button></div>`:''}</div>`:`<div class="prod" style="flex:0 0 150px"><span class="mu">빈 자리</span>${(!isP&&active)?`<div style="margin-top:8px"><button class="btn" onclick="claimSlot(${c.id},${i})">참가 신청</button></div>`:''}</div>`).join('');
 const logHtml=c.log.length?c.log.map(en=>{
 if(en.type==='chat')return`<div class="ivchat ${en.uid===uid?'me':''}"><b style="font-size:11px;opacity:.7;display:block">${e(nm(en.uid))}</b>${e(en.text)}</div>`;
-if(en.type==='dice'){if(en.mode==='stat')return`<div class="ivdice">🎲 ${e(nm(en.uid))}님의 ${STATN[en.statKey]||en.statKey} 판정 — 2d6(${en.d1}, ${en.d2}) + ${en.mod} = <b>${en.total}</b></div>`;
+if(en.type==='dice'){if(en.mode==='stat'){const tier=diceTier(en.total);
+return`<div class="ivdice">🎲 ${e(nm(en.uid))}님의 ${STATN[en.statKey]||en.statKey} 판정 — 2d6(${en.d1}, ${en.d2}) + ${en.mod} = <b>${en.total}</b> → <span class="badge ${tier.c}">${tier.n}</span></div>`}
 return`<div class="ivdice">🎲 ${e(nm(en.uid))}님의 주사위 (${e(en.notation)}): [${en.rolls.join(', ')}]${en.mod?(en.mod>0?' +'+en.mod:' '+en.mod):''} = <b>${en.total}</b></div>`}
 if(en.type==='choice'){const tally={};Object.values(en.votes||{}).forEach(o=>tally[o]=(tally[o]||0)+1);
 const opts=en.options.map(o=>{const cnt=tally[o.id]||0,isWin=en.resolved===o.id,canVote=isP&&active&&!en.resolved;
@@ -485,7 +563,8 @@ const diceBox=(isP&&active)?`<div style="margin-top:10px;padding-top:10px;border
 <div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input id="iv_dice" placeholder="예: 2d6+1" style="width:110px"><button class="btn" onclick="rollCustomDice(${c.id})">주사위 굴리기</button></div>
 </details>
 </div>`:'';
-const chatBox=(isP&&active)?`<div style="display:flex;gap:8px;margin-top:4px"><input id="iv_chat" placeholder="채팅 입력 후 Enter" onkeydown="if(event.key==='Enter'){postChat(${c.id});event.preventDefault()}"><button class="btn" onclick="postChat(${c.id})">전송</button></div>${diceBox}`:(active?empty('참가 신청 후 채팅·투표·주사위에 참여할 수 있습니다. (관전은 자유롭게 가능합니다)'):'');
+const canChat=(isP||A)&&active;
+const chatBox=canChat?`<div style="display:flex;gap:8px;margin-top:4px"><input id="iv_chat" placeholder="채팅 입력 후 Enter" onkeydown="if(event.key==='Enter'){postChat(${c.id});event.preventDefault()}"><button class="btn" onclick="postChat(${c.id})">전송</button></div>${isP?diceBox:''}`:(active?empty('참가 신청 후 채팅·투표·주사위에 참여할 수 있습니다. (관전은 자유롭게 가능합니다)'):'');
 const adminTools=A?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn" onclick="toggleCaseStatus(${c.id})">${active?'시나리오 종료':'시나리오 재개'}</button><button class="btn" onclick="branchCase(${c.id})">분기 생성</button><button class="btn dg" onclick="deleteCase(${c.id})">삭제</button></div>`:'';
 const adminPanel=(A&&active)?card('진행 서술 작성',`<textarea id="iv_narr" placeholder="서술 내용을 입력하세요"></textarea>${fld('iv_opts','선택지 (쉼표로 구분, 비우면 선택지 없는 서술로 등록)')}<button class="pri" onclick="postNarr(${c.id})">등록</button>`):'';
 return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,`<button class="btn" style="margin-bottom:14px" onclick="S.invOpen=null;R()">목록으로</button>`+parentLink+childLinks+`<div class="mu" style="margin-bottom:10px">참가 인원 ${filled} / ${c.slotCount}</div><div class="grid" style="margin-bottom:16px">${slotsHtml}</div>`+adminTools+`<div class="invlog">${logHtml}</div>`+chatBox)+adminPanel}
@@ -497,7 +576,7 @@ c.slots[idx]=null;save();R()}
 function postNarr(caseId){if(!need())return;const c=D.inv.cases.find(x=>x.id===caseId);const t=($('#iv_narr')?.value||'').trim();if(!t)return alert('서술 내용을 입력하세요.');
 const optsRaw=v('iv_opts');const opts=optsRaw?optsRaw.split(',').map(s=>s.trim()).filter(Boolean).map((label,i)=>({id:String.fromCharCode(97+i),label})):[];
 const id=nx(c.log);c.log.push(opts.length?{id,type:'choice',text:t,options:opts,votes:{},resolved:null,d:now()}:{id,type:'narr',text:t,d:now()});save();R()}
-function postChat(caseId){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active'||!c.slots.includes(S.uid))return;
+function postChat(caseId){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active'||(!c.slots.includes(S.uid)&&!adm()))return;
 const inp=$('#iv_chat');const t=(inp?.value||'').trim();if(!t)return;c.log.push({id:nx(c.log),type:'chat',uid:S.uid,text:t,d:now()});save();if(inp)inp.value='';R()}
 function rollStatDice(caseId){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active'||!c.slots.includes(S.uid))return;
 const statKey=$('#iv_stat')?.value||'str',u=me(),mod=(u.stats&&u.stats[statKey])??0;
@@ -546,7 +625,7 @@ function renameBoard(id){if(!need())return;const b=D.boards.find(x=>x.id===id);c
 function delBoard(id){if(!need())return;if(D.boards.length<=1)return alert('최소 1개의 게시판은 유지해야 합니다.');if(!confirm('게시판을 삭제하면 해당 게시판의 글도 모두 삭제됩니다. 삭제할까요?'))return;D.boards=D.boards.filter(x=>x.id!==id);D.posts=D.posts.filter(x=>x.boardId!==id);save();R()}
 function addU(){if(!need())return;const id=v('cid'),pw=$('#cpw').value,n=v('cnm');
 if(!id||!pw||!n)return alert('아이디, 비밀번호, 이름은 필수입니다.');if(!/^[A-Za-z0-9_]+$/.test(id))return alert('아이디는 영문, 숫자, 밑줄만 사용할 수 있습니다.');if(U(id))return alert('이미 사용 중인 아이디입니다.');
-D.users.push({id,pw,name:n,dept:v('cdp'),team:v('ctm'),alias:v('cal'),rank:v('crk'),pts:0,role:'user',off:0,reason:'',buys:{},cbuys:{},stats:{str:0,dex:0,int:0,luk:0,men:0}});save();R()}
+D.users.push({id,pw,name:n,dept:v('cdp'),team:v('ctm'),alias:v('cal'),rank:v('crk'),pts:0,role:'user',off:0,reason:'',buys:{},cbuys:{},stats:{str:0,dex:0,int:0,luk:0,men:0},items:[]});save();R()}
 function editU(id){if(!need())return;const u=U(id);u.stats=u.stats||{str:0,dex:0,int:0,luk:0,men:0};
 modal('사원 정보 수정','',`<div style="max-width:420px">${fld('eu_id','아이디','text',`value="${e(u.id)}" disabled`)}${fld('eu_pw','비밀번호','text',`value="${e(u.pw)}"`)}${fld('eu_name','이름 (필수)','text',`value="${e(u.name)}"`)}${fld('eu_dept','부서','text',`value="${e(u.dept)}"`)}${fld('eu_team','소속 팀','text',`value="${e(u.team)}"`)}${fld('eu_alias','가면(호칭)','text',`value="${e(u.alias)}"`)}${fld('eu_rank','직급','text',`value="${e(u.rank)}"`)}<h4 style="margin-top:16px">능력치 (조사 중 2d6+능력치로 판정)</h4><div class="mu" style="margin:-6px 0 8px">밴드 프로필 등에 적힌 수치를 그대로 입력하세요. (예: 근력 3, 민첩 4)</div><div style="display:flex;gap:10px;flex-wrap:wrap">${Object.keys(STATN).map(k=>`<div style="flex:1 1 80px">${fld('eu_'+k,STATN[k],'number',`value="${u.stats[k]??0}" min="0" max="20"`)}</div>`).join('')}</div><button class="pri" onclick="saveU('${id}')">저장</button></div>`)}
 function saveU(id){const u=U(id),name=$('#eu_name').value.trim();if(!name)return alert('이름은 비울 수 없습니다.');
