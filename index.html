@@ -124,6 +124,41 @@ animation:rainbow-move 3s linear infinite,wig 1.8s ease-in-out infinite;backgrou
 .ivopt.win{background:var(--gr);color:#fff;border-color:var(--gr)}
 .ivdice{align-self:center;text-align:center;color:var(--mu);font-size:12.5px;background:transparent;border:1px dashed var(--ln);border-radius:10px;padding:6px 12px}
 .ivdice b{color:var(--tx)}
+.gm-wrap{display:flex;justify-content:center;margin-bottom:16px}
+.gm-machine{width:100%;max-width:380px;background:linear-gradient(180deg,#1b2131,#141926);border-radius:18px;padding:0 0 16px;box-shadow:0 12px 32px rgba(0,0,0,.4),0 0 44px rgba(70,80,130,.12);position:relative;overflow:hidden;border:1px solid #333c54}
+.gm-top{height:14px;background:#10141f;border-bottom:1px solid #333c54}
+.gm-dome{position:relative;margin:14px 14px 0;height:140px;background:linear-gradient(165deg,#232b40,#12151f);border-radius:14px;border:1px solid #333c54;overflow:hidden;box-shadow:inset 0 -14px 26px rgba(0,0,0,.45),inset 0 10px 18px rgba(130,150,200,.06)}
+.gm-domeshine{position:absolute;top:-30px;left:-20px;width:120px;height:120px;background:rgba(170,190,230,.07);border-radius:50%;transform:rotate(20deg)}
+.gm-bubble{position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 3px 10px rgba(0,0,0,.4),inset -4px -6px 10px rgba(0,0,0,.35),inset 3px 5px 8px rgba(255,255,255,.12);border:1px solid rgba(170,190,230,.25);filter:saturate(.75) brightness(.85)}
+.gm-b1{width:60px;height:60px;top:14px;left:24px;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.18),#8a742f 55%,#5c4a1e)}
+.gm-b2{width:68px;height:68px;top:34px;right:18px;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.18),#3f5d78 55%,#283e52)}
+.gm-b3{width:54px;height:54px;bottom:8px;left:94px;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.18),#6b3a46 55%,#44232c)}
+.gm-empty .gm-bubble{filter:grayscale(.7) brightness(.6);opacity:.45}
+.gm-tag{position:absolute;bottom:8px;right:10px;font-size:9.5px;color:#7e8aa3;background:rgba(0,0,0,.4);padding:2px 9px;border-radius:10px;letter-spacing:.5px;border:1px solid #333c54}
+.gm-panel{margin:14px 14px 0;background:#10141f;border-radius:12px;padding:14px 14px 10px;border:1px solid #262d42;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+.gm-screen{background:#060810;color:#8fd3cf;font-size:11px;text-align:center;border-radius:6px;padding:7px 10px;margin-bottom:12px;font-family:'Courier New',monospace;letter-spacing:.2px;line-height:1.5;border:1px solid #1c2436;text-shadow:0 0 6px rgba(143,211,207,.35)}
+.gm-slots{display:flex;align-items:flex-end;gap:8px}
+.gm-slot{flex:1;min-width:0}
+.gm-slot label{color:#6b7690;font-weight:700;font-size:11px;margin:0 0 4px;letter-spacing:.2px}
+.gm-slot select{border:1px solid #2e3650!important;border-radius:8px!important;background:#161b28!important;color:#d8dce6!important}
+.gm-x{font-size:16px;color:#4a5370;padding-bottom:10px;flex:none;font-weight:700}
+.gm-btn{width:100%;margin-top:12px;border:1px solid #3a4568;border-radius:10px;padding:11px;background:linear-gradient(180deg,#323c58,#1e2438);color:#dfe4f0;font-weight:700;font-size:14px;letter-spacing:.3px;cursor:pointer;box-shadow:0 4px 0 #11141f,0 8px 16px rgba(0,0,0,.35);transition:transform .08s,box-shadow .08s}
+.gm-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #11141f,0 3px 8px rgba(0,0,0,.3)}
+.gm-base{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px 14px 0;padding:10px 14px;background:#10141f;border-radius:10px;border:1px solid #262d42}
+.gm-door{width:46px;height:34px;border-radius:4px 4px 14px 14px;background:#1a2032;border:1px solid #333c54;flex:none}
+.gm-doortext{font-size:10.5px;color:#6b7690;line-height:1.4}
+.gm-crankrow{display:flex;flex-direction:column;align-items:center;gap:6px;margin:14px 14px 0}
+.gm-crank{width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4a5578,#1a2030 72%);border:1px solid #4a5a82;box-shadow:0 3px 8px rgba(0,0,0,.45),inset 0 0 0 4px rgba(0,0,0,.35);position:relative}
+.gm-crank-stick{position:absolute;top:50%;left:50%;width:19px;height:6px;background:linear-gradient(90deg,#8a96c0,#4a5578);border-radius:3px;transform-origin:3px 3px;transform:translate(-3px,-3px)}
+.gm-crank-dot{position:absolute;top:50%;left:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#6b7690}
+.gm-crank.spin{animation:gm-turn .7s cubic-bezier(.4,0,.2,1)}
+.gm-cranklabel{font-size:10px;color:#6b7690;letter-spacing:.3px}
+@keyframes gm-turn{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.gm-capsule{position:absolute;left:50%;top:9%;width:28px;height:28px;border-radius:50%;opacity:0;z-index:7;margin-left:-14px;box-shadow:0 2px 6px rgba(0,0,0,.5),inset -4px -5px 8px rgba(0,0,0,.3),inset 3px 4px 6px rgba(255,255,255,.15);border:1px solid rgba(170,190,230,.3)}
+.gm-capsule.drop{animation:gm-drop 1.05s cubic-bezier(.34,1.2,.64,1) forwards}
+@keyframes gm-drop{0%{top:9%;opacity:1}78%{top:87%}88%{top:83%}100%{top:87%;opacity:1}}
+.gm-capsule.pop{animation:gm-pop .4s ease-out forwards}
+@keyframes gm-pop{0%{transform:scale(1);opacity:1}55%{transform:scale(1.6);opacity:1}100%{transform:scale(2);opacity:0}}
 @media(max-width:700px){#bd{flex-direction:column}nav{width:auto;display:flex;overflow-x:auto;padding:8px}nav a{white-space:nowrap}main{padding:16px}.side{flex-basis:100%}}
 </style></head><body><div id="app"></div>
 <script>
@@ -367,8 +402,11 @@ function delS(id){if(!need()||!confirm('삭제할까요?'))return;D.sn=D.sn.filt
 function itemsTable(m){const items=m.items||[];
 return items.length?tbl(['이름','효능','관리'],items.map(it=>`<tr><td class="l">${e(it.name)}${it.origin&&it.origin!==m.id?` <span class="mu" style="font-size:11px">(원 소유자: ${e(nm(it.origin))})</span>`:''}</td><td class="l">${e(it.desc)}</td><td><button class="btn" onclick="openTransfer(${it.id})">양도</button></td></tr>`)):empty('보유한 소지품이 없습니다.')}
 function shopCraft(){const m=me(),items=m.items||[],cost=D.craftCost||500;
-const formHtml=items.length>=2?`<div class="mu" style="margin-bottom:10px">소지품 두 개를 선택해 제작하면 새로운 장비가 만들어집니다. 조합에 따라 전혀 다른 이름과 효능의 결과물이 나올 수 있습니다. 사용한 두 소지품은 사라지지 않고 그대로 보유합니다. (기본 비용 ${cost} P, 특정 조합은 비용이 다를 수 있습니다)</div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><select id="cr_a">${items.map(it=>`<option value="${it.id}">${e(it.name)}</option>`).join('')}</select><span class="mu">+</span><select id="cr_b">${items.map(it=>`<option value="${it.id}">${e(it.name)}</option>`).join('')}</select><button class="pri" style="margin-top:0" onclick="craftItem()">제작하기</button></div>`:empty(`소지품이 2개 이상 있어야 장비를 제작할 수 있습니다. (현재 ${items.length}개 보유) 관리자에게 아이템 지급을 요청하거나, 다른 사원에게서 소지품을 양도받아 보세요.`);
-return noticeBlock('craftSn','장비 제작 공지')+card('커스텀 장비 제작',formHtml)+card(`내 소지품 (${items.length})`,itemsTable(m))}
+const ready=items.length>=2;
+const panelHtml=ready?`<div class="gm-panel"><div class="gm-screen">재료 두 개를 투입하면 새 장비가 완성됩니다<br>기본 비용 ${cost} P · 조합에 따라 결과·비용이 달라질 수 있음</div><div class="gm-slots"><div class="gm-slot"><label>재료 1</label><select id="cr_a">${items.map(it=>`<option value="${it.id}">${e(it.name)}</option>`).join('')}</select></div><div class="gm-x">+</div><div class="gm-slot"><label>재료 2</label><select id="cr_b">${items.map(it=>`<option value="${it.id}">${e(it.name)}</option>`).join('')}</select></div></div><button class="gm-btn" onclick="craftItem()">제작하기</button></div>`:`<div class="gm-panel"><div class="gm-screen">재료가 부족합니다 (${items.length}/2)<br>관리자에게 소지품을 요청하거나 양도받아 보세요</div></div>`;
+const crankHtml=ready?`<div class="gm-crankrow"><div class="gm-crank" id="gm_crank"><div class="gm-crank-stick"></div><div class="gm-crank-dot"></div></div><div class="gm-cranklabel">◀ 손잡이를 돌려 제작 ▶</div></div>`:'';
+const machine=`<div class="gm-wrap"><div class="gm-machine${ready?'':' gm-empty'}" id="gm_machine"><div class="gm-top"></div><div class="gm-dome"><div class="gm-domeshine"></div><div class="gm-bubble gm-b1"></div><div class="gm-bubble gm-b2"></div><div class="gm-bubble gm-b3"></div><div class="gm-tag">제작 유닛 · 07</div></div>${panelHtml}${crankHtml}<div class="gm-base"><div class="gm-door"></div><div class="gm-doortext">완성품은 소지품으로<br>바로 지급됩니다</div></div>${ready?'<div class="gm-capsule" id="gm_capsule"></div>':''}</div></div>`;
+return noticeBlock('craftSn','장비 제작 공지')+card('커스텀 장비 제작',machine+'<div class="mu" style="margin-top:14px;text-align:center">사용한 두 소지품은 사라지지 않고 그대로 보유합니다.</div>')+card(`내 소지품 (${items.length})`,itemsTable(m))}
 function craftItem(){const m=me(),aId=+v('cr_a'),bId=+v('cr_b');if(!aId||!bId||aId===bId)return alert('서로 다른 소지품 두 개를 선택하세요.');
 const a=(m.items||[]).find(x=>x.id===aId),b=(m.items||[]).find(x=>x.id===bId);if(!a||!b)return alert('소지품을 찾을 수 없습니다.');
 const rec=findRecipe(a.name,b.name);
@@ -377,6 +415,7 @@ if(m.pts<cost)return alert('포인트가 부족합니다.');
 const outName=rec?rec.outName:`${a.name} + ${b.name}`;
 const outDesc=rec?rec.outDesc:`[${a.name}] ${a.desc}\n[${b.name}] ${b.desc}`;
 if(!confirm(`${a.name}와(과) ${b.name}의 정보를 사용해 ${cost} P로 새 장비를 제작할까요? 두 소지품은 그대로 돌려받습니다.`))return;
+playCraftAnim(capColor=>{
 m.pts-=cost;
 const newItem={id:nx(m.items),name:outName,desc:outDesc,origin:S.uid};
 if(!rec)newItem.craftedFrom={a:a.name,b:b.name};
@@ -384,7 +423,17 @@ m.items.push(newItem);
 D.log.push({u:m.id,a:-cost,why:`커스텀 장비 제작: ${newItem.name}`,d:now()});
 if(!rec){D.craftLog=D.craftLog||[];const entry=D.craftLog.find(c=>{const ca=c.a.trim().toLowerCase(),cb=c.b.trim().toLowerCase(),na=a.name.trim().toLowerCase(),nb=b.name.trim().toLowerCase();return(ca===na&&cb===nb)||(ca===nb&&cb===na)});
 if(entry)entry.count=(entry.count||1)+1;else D.craftLog.push({id:nx(D.craftLog),a:a.name,b:b.name,count:1})}
-save();R();alert('새 장비가 제작되었습니다: '+newItem.name)}
+save();R();
+modal('캡슐이 열렸습니다',`<div style="width:52px;height:52px;border-radius:50%;margin:0 auto;background:${capColor};border:1px solid rgba(170,190,230,.35);box-shadow:0 3px 10px rgba(0,0,0,.4),inset -4px -5px 8px rgba(0,0,0,.3),inset 3px 4px 6px rgba(255,255,255,.15)"></div>`,`<div style="text-align:center"><div style="font-size:17px;font-weight:700;margin:4px 0 10px">${e(newItem.name)}</div><div style="white-space:pre-wrap;color:var(--mu);line-height:1.6;text-align:left">${e(newItem.desc)}</div></div>`)})}
+const GM_CAP_COLORS=['linear-gradient(160deg,#8a742f,#5c4a1e)','linear-gradient(160deg,#3f5d78,#283e52)','linear-gradient(160deg,#6b3a46,#44232c)'];
+function playCraftAnim(done){const crank=$('#gm_crank'),cap=$('#gm_capsule'),btn=document.querySelector('.gm-btn');
+const color=GM_CAP_COLORS[Math.floor(Math.random()*GM_CAP_COLORS.length)];
+if(!crank||!cap){done(color);return}
+if(btn)btn.disabled=true;
+crank.classList.add('spin');
+setTimeout(()=>{cap.style.background=color;cap.classList.add('drop')},250);
+setTimeout(()=>{cap.classList.add('pop')},1300);
+setTimeout(()=>{done(color)},1700)}
 function openTransfer(itemId){const m=me(),it=(m.items||[]).find(x=>x.id===itemId);if(!it)return;
 const targets=D.users.filter(u=>u.id!==S.uid&&!u.off);
 modal('소지품 양도','',`<div style="max-width:420px"><p>${e(it.name)} 을(를) 양도합니다. 받은 사람은 이 소지품을 자신의 장비 제작에 사용할 수 있게 됩니다.</p><label>받는 사람</label><select id="tr_to"><option value="">선택하십시오</option>${targets.map(u=>`<option value="${u.id}">${e(u.name)} (${e(u.dept)})</option>`).join('')}</select><button class="pri" onclick="transferItem(${itemId})">양도하기</button></div>`)}
@@ -399,7 +448,8 @@ return(D.recipes||[]).find(r=>{const ra=(r.a||'').trim().toLowerCase(),rb=(r.b||
 function shopRecipes(){const rs=D.recipes||[];
 const pending=(D.craftLog||[]).filter(c=>!findRecipe(c.a,c.b)).sort((x,y)=>(y.count||0)-(x.count||0));
 const pendingCard=card('아직 레시피가 없는 실제 제작 조합',pending.length?tbl(['재료 1','재료 2','제작된 횟수','관리'],pending.map(c=>`<tr><td class="l">${e(c.a)}</td><td class="l">${e(c.b)}</td><td>${c.count||1}</td><td><button class="btn" onclick="quickRecipe(${c.id})">레시피 만들기</button></td></tr>`)):empty('사원들이 레시피 없이(자동 합성으로) 제작한 조합이 아직 없습니다. 사전에 모든 조합을 미리 등록해 둘 필요는 없습니다 — 실제로 누군가 시도한 조합만 여기에 쌓이니, 마음에 드는 것만 골라 나중에 고유한 이름과 효능으로 바꿔주시면 됩니다.'));
-return`<div class="two">${pendingCard+card('등록된 제작 레시피',rs.length?tbl(['재료 1','재료 2','결과물','가격','관리'],rs.map(r=>`<tr><td class="l">${e(r.a)}</td><td class="l">${e(r.b)}</td><td class="l"><b>${e(r.outName)}</b><div class="mu" style="font-size:12px">${e(r.outDesc)}</div></td><td>${r.price?r.price+' P':'기본 비용'}</td><td><button class="btn dg" onclick="delRecipe(${r.id})">삭제</button></td></tr>`)):empty('등록된 레시피가 없습니다. 레시피가 없는 조합은 두 소지품의 이름·효능을 그대로 합친 결과물이 만들어집니다.'))}<div class="card side"><h3 id="rc_form_h">레시피 등록</h3><div class="mu" style="margin-bottom:10px;font-size:12px">두 재료의 이름을 정확히 입력하면, 사원이 해당 두 소지품(순서 무관)으로 제작할 때 아래 결과물이 만들어집니다.</div>${fld('rc_a','재료 1 이름 (필수)')}${fld('rc_b','재료 2 이름 (필수)')}${fld('rc_n','결과물 이름 (필수)')}<label>결과물 효능 (필수)</label><textarea id="rc_d"></textarea>${fld('rc_p','제작 비용 (P, 비우면 기본 비용 사용)','number')}<button class="pri" onclick="addRecipe()">등록</button></div></div>`}
+const costCard=card('기본 제작 비용',`<div class="mu" style="margin-bottom:10px;font-size:12px">특정 레시피에 별도 가격을 지정하지 않으면 이 기본 비용이 적용됩니다.</div><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div style="flex:1;min-width:140px">${fld('gi_cost','장비 제작 비용 (P)','number',`value="${D.craftCost||500}"`)}</div><button class="btn" style="margin-top:0" onclick="saveCraftCost()">저장</button></div>`);
+return`<div class="two">${costCard+pendingCard+card('등록된 제작 레시피',rs.length?tbl(['재료 1','재료 2','결과물','가격','관리'],rs.map(r=>`<tr><td class="l">${e(r.a)}</td><td class="l">${e(r.b)}</td><td class="l"><b>${e(r.outName)}</b><div class="mu" style="font-size:12px">${e(r.outDesc)}</div></td><td>${r.price?r.price+' P':'기본 비용'}</td><td><button class="btn dg" onclick="delRecipe(${r.id})">삭제</button></td></tr>`)):empty('등록된 레시피가 없습니다. 레시피가 없는 조합은 두 소지품의 이름·효능을 그대로 합친 결과물이 만들어집니다.'))}<div class="card side"><h3 id="rc_form_h">레시피 등록</h3><div class="mu" style="margin-bottom:10px;font-size:12px">두 재료의 이름을 정확히 입력하면, 사원이 해당 두 소지품(순서 무관)으로 제작할 때 아래 결과물이 만들어집니다.</div>${fld('rc_a','재료 1 이름 (필수)')}${fld('rc_b','재료 2 이름 (필수)')}${fld('rc_n','결과물 이름 (필수)')}<label>결과물 효능 (필수)</label><textarea id="rc_d"></textarea>${fld('rc_p','제작 비용 (P, 비우면 기본 비용 사용)','number')}<button class="pri" onclick="addRecipe()">등록</button></div></div>`}
 function matchesCombo(item,aName,bName){const na=aName.trim().toLowerCase(),nb=bName.trim().toLowerCase();
 if(item.craftedFrom){const ca=(item.craftedFrom.a||'').trim().toLowerCase(),cb=(item.craftedFrom.b||'').trim().toLowerCase();return(ca===na&&cb===nb)||(ca===nb&&cb===na)}
 return item.name===`${aName.trim()} + ${bName.trim()}`||item.name===`${bName.trim()} + ${aName.trim()}`}
@@ -413,7 +463,7 @@ $('#rc_a').value=c.a;$('#rc_b').value=c.b;$('#rc_n').value='';$('#rc_d').value='
 $('#rc_form_h')?.scrollIntoView({behavior:'smooth',block:'center'});$('#rc_n')?.focus()}
 function shopItems(){const rows=[];D.users.forEach(u=>(u.items||[]).forEach(it=>rows.push({...it,owner:u.id})));
 rows.sort((a,b)=>b.id-a.id);
-return`<div class="two">${card('전체 소지품 현황',rows.length?tbl(['소유자','이름','효능','관리'],rows.map(it=>`<tr><td>${e(nm(it.owner))}</td><td class="l">${e(it.name)}</td><td class="l">${e(it.desc)}</td><td><button class="btn dg" onclick="removeItem('${it.owner}',${it.id})">삭제</button></td></tr>`)):empty('지급된 소지품이 없습니다.'))}<div class="card side"><h3>소지품 지급</h3><label>대상 사원</label><select id="gi_to">${D.users.map(u=>`<option value="${u.id}">${e(u.name)} (${u.id})</option>`).join('')}</select>${fld('gi_n','아이템 이름 (필수)')}<label>효능 설명 (필수)</label><textarea id="gi_d"></textarea><button class="pri" onclick="grantItem()">지급</button><h4 style="margin-top:20px">제작 비용 설정</h4>${fld('gi_cost','장비 제작 비용 (P)','number',`value="${D.craftCost||500}"`)}<button class="btn" onclick="saveCraftCost()">저장</button></div></div>`}
+return`<div class="two">${card('전체 소지품 현황',rows.length?tbl(['소유자','이름','효능','관리'],rows.map(it=>`<tr><td>${e(nm(it.owner))}</td><td class="l">${e(it.name)}</td><td class="l">${e(it.desc)}</td><td><button class="btn dg" onclick="removeItem('${it.owner}',${it.id})">삭제</button></td></tr>`)):empty('지급된 소지품이 없습니다.'))}<div class="card side"><h3>소지품 지급</h3><label>대상 사원</label><select id="gi_to">${D.users.map(u=>`<option value="${u.id}">${e(u.name)} (${u.id})</option>`).join('')}</select>${fld('gi_n','아이템 이름 (필수)')}<label>효능 설명 (필수)</label><textarea id="gi_d"></textarea><button class="pri" onclick="grantItem()">지급</button></div></div>`}
 function grantItem(){if(!need())return;const to=v('gi_to'),n=v('gi_n'),d=$('#gi_d').value.trim();if(!to||!n||!d)return alert('대상, 이름, 효능 설명을 입력하세요.');
 const u=U(to);u.items=u.items||[];u.items.push({id:nx(u.items),name:n,desc:d,origin:to});save();R();alert('지급되었습니다.')}
 function removeItem(owner,id){if(!need()||!confirm('삭제할까요?'))return;const u=U(owner);u.items=(u.items||[]).filter(x=>x.id!==id);save();R()}
