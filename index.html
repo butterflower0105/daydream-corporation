@@ -707,8 +707,25 @@ function addU(){if(!need())return;const id=v('cid'),pw=$('#cpw').value,n=v('cnm'
 if(!id||!pw||!n)return alert('아이디, 비밀번호, 이름은 필수입니다.');if(!/^[A-Za-z0-9_]+$/.test(id))return alert('아이디는 영문, 숫자, 밑줄만 사용할 수 있습니다.');if(U(id))return alert('이미 사용 중인 아이디입니다.');
 D.users.push({id,pw,name:n,dept:v('cdp'),team:v('ctm'),alias:v('cal'),rank:v('crk'),pts:0,role:'user',off:0,reason:'',buys:{},cbuys:{},stats:{str:0,dex:0,int:0,luk:0,men:0},items:[]});save();R()}
 function editU(id){if(!need())return;const u=U(id);u.stats=u.stats||{str:0,dex:0,int:0,luk:0,men:0};
-modal('사원 정보 수정','',`<div style="max-width:420px">${fld('eu_id','아이디','text',`value="${e(u.id)}" disabled`)}${fld('eu_pw','비밀번호','text',`value="${e(u.pw)}"`)}${fld('eu_name','이름 (필수)','text',`value="${e(u.name)}"`)}${fld('eu_dept','부서','text',`value="${e(u.dept)}"`)}${fld('eu_team','소속 팀','text',`value="${e(u.team)}"`)}${fld('eu_alias','가면(호칭)','text',`value="${e(u.alias)}"`)}${fld('eu_rank','직급','text',`value="${e(u.rank)}"`)}<h4 style="margin-top:16px">능력치 (조사 중 2d6+능력치로 판정)</h4><div class="mu" style="margin:-6px 0 8px">밴드 프로필 등에 적힌 수치를 그대로 입력하세요. (예: 근력 3, 민첩 4)</div><div style="display:flex;gap:10px;flex-wrap:wrap">${Object.keys(STATN).map(k=>`<div style="flex:1 1 80px">${fld('eu_'+k,STATN[k],'number',`value="${u.stats[k]??0}" min="0" max="20"`)}</div>`).join('')}</div><button class="pri" onclick="saveU('${id}')">저장</button></div>`)}
+modal('사원 정보 수정','',`<div style="max-width:420px">${fld('eu_id','아이디','text',`value="${e(u.id)}"`)}<div class="mu" style="margin:-6px 0 8px;font-size:11px">아이디를 변경하면 해당 사원과 관련된 모든 기록(쪽지, 게시글, 보고서, 상담, 조사 참여 등)에 자동으로 반영됩니다.</div>${fld('eu_pw','비밀번호','text',`value="${e(u.pw)}"`)}${fld('eu_name','이름 (필수)','text',`value="${e(u.name)}"`)}${fld('eu_dept','부서','text',`value="${e(u.dept)}"`)}${fld('eu_team','소속 팀','text',`value="${e(u.team)}"`)}${fld('eu_alias','가면(호칭)','text',`value="${e(u.alias)}"`)}${fld('eu_rank','직급','text',`value="${e(u.rank)}"`)}<h4 style="margin-top:16px">능력치 (조사 중 2d6+능력치로 판정)</h4><div class="mu" style="margin:-6px 0 8px">밴드 프로필 등에 적힌 수치를 그대로 입력하세요. (예: 근력 3, 민첩 4)</div><div style="display:flex;gap:10px;flex-wrap:wrap">${Object.keys(STATN).map(k=>`<div style="flex:1 1 80px">${fld('eu_'+k,STATN[k],'number',`value="${u.stats[k]??0}" min="0" max="20"`)}</div>`).join('')}</div><button class="pri" onclick="saveU('${id}')">저장</button></div>`)}
+function changeUserId(oldId,newId){
+D.users.forEach(u=>{if(u.id===oldId)u.id=newId;(u.items||[]).forEach(it=>{if(it.origin===oldId)it.origin=newId})});
+(D.msgs||[]).forEach(m=>{if(m.from===oldId)m.from=newId;if(m.to===oldId)m.to=newId;if(Array.isArray(m.readBy)){const i=m.readBy.indexOf(oldId);if(i>=0)m.readBy[i]=newId}});
+(D.reports||[]).forEach(r=>{if(r.who===oldId)r.who=newId;if(Array.isArray(r.seenBy)){const i=r.seenBy.indexOf(oldId);if(i>=0)r.seenBy[i]=newId}});
+(D.counsel||[]).forEach(c=>{if(c.uid===oldId)c.uid=newId});
+(D.posts||[]).forEach(p=>{if(p.uid===oldId)p.uid=newId;if(Array.isArray(p.likes)){const i=p.likes.indexOf(oldId);if(i>=0)p.likes[i]=newId}
+(p.comments||[]).forEach(c=>{if(c.uid===oldId)c.uid=newId})});
+(D.inv?.cases||[]).forEach(c=>{c.slots=(c.slots||[]).map(s=>s===oldId?newId:s);
+(c.log||[]).forEach(en=>{if(en.uid===oldId)en.uid=newId;if(en.votes&&Object.prototype.hasOwnProperty.call(en.votes,oldId)){en.votes[newId]=en.votes[oldId];delete en.votes[oldId]}})});
+(D.log||[]).forEach(l=>{if(l.u===oldId)l.u=newId});
+if(S.uid===oldId){S.uid=newId;try{localStorage.setItem(UK,newId)}catch(x){}}
+}
 function saveU(id){const u=U(id),name=$('#eu_name').value.trim();if(!name)return alert('이름은 비울 수 없습니다.');
+const newId=($('#eu_id')?.value||'').trim();
+if(!newId)return alert('아이디는 비울 수 없습니다.');
+if(!/^[A-Za-z0-9_]+$/.test(newId))return alert('아이디는 영문, 숫자, 밑줄만 사용할 수 있습니다.');
+if(newId!==id&&U(newId))return alert('이미 사용 중인 아이디입니다.');
+if(newId!==id)changeUserId(id,newId);
 u.pw=$('#eu_pw').value.trim()||u.pw;u.name=name;u.dept=$('#eu_dept').value.trim();u.team=$('#eu_team').value.trim();u.alias=$('#eu_alias').value.trim();u.rank=$('#eu_rank').value.trim();
 u.stats=u.stats||{};Object.keys(STATN).forEach(k=>{const el=$('#eu_'+k);if(el)u.stats[k]=Math.max(0,Math.min(20,+el.value||0))});
 save();document.querySelector('.ov')?.remove();R()}
