@@ -315,9 +315,15 @@ const logout=()=>{S.uid=null;try{localStorage.removeItem(UK)}catch(x){}R()};
 function R(){if(!D)return;const m=me();
 if(!m){app.innerHTML=`<form id="lg" onsubmit="return login()"><small class="mu">사내 인트라넷</small><h2>${e(D.co)}</h2>${fld('lid','아이디','text','autocomplete="username"')}${fld('lpw','비밀번호','password','autocomplete="current-password"')}<button class="pri" style="width:100%">출근</button><div id="lerr"></div></form>`;return}
 const ms=D.menus.filter(x=>x.v&&(x.k!=='admin'||adm()));if(!ms.some(x=>x.k===S.pg))S.pg=ms[0].k;
+const scrollX=window.scrollX,scrollY=window.scrollY;
+const af=document.activeElement;const afId=(af&&af.id)?af.id:null;
+const afSel=(afId&&(af.tagName==='INPUT'||af.tagName==='TEXTAREA')&&typeof af.selectionStart==='number')?[af.selectionStart,af.selectionEnd]:null;
 app.innerHTML=`<header><span style="gap:14px"><span onclick="logoClick()" style="cursor:default;display:flex">${LOGO}</span><b>${e(D.co)}</b><span class="clk" id="clk"></span></span><span><span class="led ${SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':''}" id="led"></span>${e(m.name)}${adm()?MK():''} · 보유 포인트 <span class="pts">${m.pts} P</span><button class="out" onclick="logout()">퇴근</button></span></header><div id="bd"><nav>${ms.map(x=>`${x.k==='inv'?'<div class="nav-sep"></div>':''}<a class="${x.k===S.pg?'on':''}" onclick="go('${x.k}')">${ICON[x.k]||''}${e(x.n)}${navDot(x.k,S.uid)?'<span class="dot"></span>':''}</a>`).join('')}<div class="syn" id="syncbadge">${SYNC==='local'?'서버 연결 실패 — 이 기기에만 저장됩니다':''}</div></nav><main>${tabsH()}${P[S.pg]()}</main></div>`;tick();
 const ci=$('#cinput');if(ci)ci.value=counselDraft;
-const cm=$('#cmsgs');if(cm)cm.scrollTop=cm.scrollHeight}
+const cm=$('#cmsgs');if(cm)cm.scrollTop=cm.scrollHeight;
+const il=$('#ivlog');if(il)il.scrollTop=il.scrollHeight;
+if(afId){const el=document.getElementById(afId);if(el&&typeof el.focus==='function'){el.focus();if(afSel&&typeof el.setSelectionRange==='function'){try{el.setSelectionRange(afSel[0],afSel[1])}catch(x){}}}}
+window.scrollTo(scrollX,scrollY)}
 let clkT;function tick(){clearInterval(clkT);const d=$('#clk');if(!d)return;const f=()=>{const n=new Date();d.textContent=`${n.getFullYear()}.${p2(n.getMonth()+1)}.${p2(n.getDate())} ${p2(n.getHours())}:${p2(n.getMinutes())}:${p2(n.getSeconds())}`};f();clkT=setInterval(f,1000)}
 const P={};
 P.notices=()=>{const A=adm(),uid=S.uid;const ns=[...D.notices].sort((a,b)=>b.d.localeCompare(a.d));const latest=ns[0];
@@ -461,11 +467,17 @@ function delRecipe(id){if(!need()||!confirm('삭제할까요?'))return;D.recipes
 function quickRecipe(id){const c=(D.craftLog||[]).find(x=>x.id===id);if(!c)return;
 $('#rc_a').value=c.a;$('#rc_b').value=c.b;$('#rc_n').value='';$('#rc_d').value='';$('#rc_p').value='';
 $('#rc_form_h')?.scrollIntoView({behavior:'smooth',block:'center'});$('#rc_n')?.focus()}
-function shopItems(){const rows=[];D.users.forEach(u=>(u.items||[]).forEach(it=>rows.push({...it,owner:u.id})));
-rows.sort((a,b)=>b.id-a.id);
-return`<div class="two">${card('전체 소지품 현황',rows.length?tbl(['소유자','이름','효능','관리'],rows.map(it=>`<tr><td>${e(nm(it.owner))}</td><td class="l">${e(it.name)}</td><td class="l">${e(it.desc)}</td><td><button class="btn dg" onclick="removeItem('${it.owner}',${it.id})">삭제</button></td></tr>`)):empty('지급된 소지품이 없습니다.'))}<div class="card side"><h3>소지품 지급</h3><label>대상 사원</label><select id="gi_to">${D.users.map(u=>`<option value="${u.id}">${e(u.name)} (${u.id})</option>`).join('')}</select>${fld('gi_n','아이템 이름 (필수)')}<label>효능 설명 (필수)</label><textarea id="gi_d"></textarea><button class="pri" onclick="grantItem()">지급</button></div></div>`}
+function shopItems(){const filter=S.itemsFilter||'';
+let rows=[];D.users.forEach(u=>(u.items||[]).forEach(it=>rows.push({...it,owner:u.id})));
+if(filter)rows=rows.filter(r=>r.owner===filter);
+rows.sort((a,b)=>(nm(a.owner)||'').localeCompare(nm(b.owner)||'')||b.id-a.id);
+const filterSel=`<select id="gi_filter" onchange="S.itemsFilter=this.value;R()" style="max-width:220px"><option value="">전체 사원 (${D.users.reduce((n,u)=>n+(u.items||[]).length,0)}개)</option>${D.users.map(u=>`<option value="${u.id}" ${filter===u.id?'selected':''}>${e(u.name)} (${u.id}) · ${(u.items||[]).length}개</option>`).join('')}</select>`;
+return`<div class="two">${card('전체 소지품 현황',`<div style="margin-bottom:12px">${filterSel}</div>`+(rows.length?tbl(['소유자','이름','효능','관리'],rows.map(it=>`<tr><td>${e(nm(it.owner))}</td><td class="l">${e(it.name)}</td><td class="l">${e(it.desc)}</td><td class="nw"><button class="btn" onclick="editItem('${it.owner}',${it.id})">수정</button> <button class="btn dg" onclick="removeItem('${it.owner}',${it.id})">삭제</button></td></tr>`)):empty(filter?'해당 사원의 소지품이 없습니다.':'지급된 소지품이 없습니다.')))}<div class="card side"><h3>소지품 지급</h3><label>대상 사원</label><select id="gi_to">${D.users.map(u=>`<option value="${u.id}">${e(u.name)} (${u.id})</option>`).join('')}</select>${fld('gi_n','아이템 이름 (필수)')}<label>효능 설명 (필수)</label><textarea id="gi_d"></textarea><button class="pri" onclick="grantItem()">지급</button></div></div>`}
 function grantItem(){if(!need())return;const to=v('gi_to'),n=v('gi_n'),d=$('#gi_d').value.trim();if(!to||!n||!d)return alert('대상, 이름, 효능 설명을 입력하세요.');
 const u=U(to);u.items=u.items||[];u.items.push({id:nx(u.items),name:n,desc:d,origin:to});save();R();alert('지급되었습니다.')}
+function editItem(owner,id){if(!need())return;const u=U(owner),it=(u.items||[]).find(x=>x.id===id);if(!it)return;
+const n=prompt('아이템 이름',it.name);if(!n)return;const d=prompt('효능 설명',it.desc);if(d===null)return;
+it.name=n;it.desc=d;save();R();alert('수정되었습니다.')}
 function removeItem(owner,id){if(!need()||!confirm('삭제할까요?'))return;const u=U(owner);u.items=(u.items||[]).filter(x=>x.id!==id);save();R()}
 function saveCraftCost(){if(!need())return;D.craftCost=+v('gi_cost')||500;save();R();alert('저장되었습니다.')}
 P.points=()=>{const m=me(),mine=D.log.filter(l=>l.u===m.id).reverse();
@@ -617,7 +629,7 @@ const canChat=(isP||A)&&active;
 const chatBox=canChat?`<div style="display:flex;gap:8px;margin-top:4px"><input id="iv_chat" placeholder="채팅 입력 후 Enter" onkeydown="if(event.key==='Enter'){postChat(${c.id});event.preventDefault()}"><button class="btn" onclick="postChat(${c.id})">전송</button></div>${isP?diceBox:''}`:(active?empty('참가 신청 후 채팅·투표·주사위에 참여할 수 있습니다. (관전은 자유롭게 가능합니다)'):'');
 const adminTools=A?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn" onclick="toggleCaseStatus(${c.id})">${active?'시나리오 종료':'시나리오 재개'}</button><button class="btn" onclick="branchCase(${c.id})">분기 생성</button><button class="btn dg" onclick="deleteCase(${c.id})">삭제</button></div>`:'';
 const adminPanel=(A&&active)?card('진행 서술 작성',`<textarea id="iv_narr" placeholder="서술 내용을 입력하세요"></textarea>${fld('iv_opts','선택지 (쉼표로 구분, 비우면 선택지 없는 서술로 등록)')}<button class="pri" onclick="postNarr(${c.id})">등록</button>`):'';
-return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,`<button class="btn" style="margin-bottom:14px" onclick="S.invOpen=null;R()">목록으로</button>`+parentLink+childLinks+`<div class="mu" style="margin-bottom:10px">참가 인원 ${filled} / ${c.slotCount}</div><div class="grid" style="margin-bottom:16px">${slotsHtml}</div>`+adminTools+`<div class="invlog">${logHtml}</div>`+chatBox)+adminPanel}
+return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,`<button class="btn" style="margin-bottom:14px" onclick="S.invOpen=null;R()">목록으로</button>`+parentLink+childLinks+`<div class="mu" style="margin-bottom:10px">참가 인원 ${filled} / ${c.slotCount}</div><div class="grid" style="margin-bottom:16px">${slotsHtml}</div>`+adminTools+`<div class="invlog" id="ivlog">${logHtml}</div>`+chatBox)+adminPanel}
 function claimSlot(caseId,idx){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active')return alert('종료된 시나리오입니다.');
 if(c.slots.includes(S.uid))return alert('이미 참가 중인 시나리오입니다.');if(c.slots[idx])return alert('이미 선점된 자리입니다.');
 c.slots[idx]=S.uid;save();R()}
