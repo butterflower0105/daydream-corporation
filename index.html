@@ -165,7 +165,7 @@ animation:rainbow-move 3s linear infinite,wig 1.8s ease-in-out infinite;backgrou
 .gm-capsule.pop{animation:gm-pop .4s ease-out forwards}
 @keyframes gm-pop{0%{transform:scale(1);opacity:1}55%{transform:scale(1.6);opacity:1}100%{transform:scale(2);opacity:0}}
 @media(max-width:700px){#bd{flex-direction:column}nav{width:auto;display:flex;overflow-x:auto;padding:8px}nav a{white-space:nowrap}main{padding:16px}.side{flex-basis:100%}}
-</style></head><body><div id="app"></div>
+</style></head><body><div id="app"></div><div id="ytbgmhost" style="position:fixed;left:-9999px;top:-9999px;width:2px;height:2px;overflow:hidden"><div id="ytbgmplayer"></div></div>
 <script>
 const $=s=>document.querySelector(s),v=i=>$('#'+i).value.trim(),app=$('#app');
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -334,6 +334,44 @@ function corruptVars(p){if(p.fontData)ensureCustomFontFace(p);else if(p.fontUrl)
 const corruptImgHtml=p=>p.img?`<div class="corrupt-img" style="background-image:url('${p.img}')"></div>`:'';
 function applyCorruptModal(p){const mds=document.querySelectorAll('.ov .md');const md=mds[mds.length-1];if(!md)return;md.classList.add('corrupt');md.setAttribute('style',corruptVars(p))}
 const corruptPresetOptions=selId=>corruptPresets().map(p=>`<option value="${p.id}" ${p.id===selId?'selected':''}>${e(p.name)}</option>`).join('');
+function extractYtId(url){const m=(url||'').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);return m?m[1]:null}
+function bgmSetTrack(caseId){if(!need())return;const url=($('#bgm_url')?.value||'').trim();const id=extractYtId(url);
+if(!id)return alert('올바른 유튜브 링크가 아닙니다. (예: https://www.youtube.com/watch?v=..., https://youtu.be/...)');
+saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;c.bgm={videoId:id,playing:true,pos:0,posAt:Date.now()}})}
+function bgmPlay(caseId){if(!need())return;saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c||!c.bgm)return;
+if(!c.bgm.playing){c.bgm.posAt=Date.now();c.bgm.playing=true}})}
+function bgmPause(caseId){if(!need())return;saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c||!c.bgm)return;
+if(c.bgm.playing){c.bgm.pos=(c.bgm.pos||0)+(Date.now()-c.bgm.posAt)/1000;c.bgm.posAt=Date.now();c.bgm.playing=false}})}
+function bgmStop(caseId){if(!need())return;if(!confirm('브금을 끌까요?'))return;
+saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;c.bgm=null})}
+let ytApiQueue=[],ytPlayer=null,ytPlayerVideoId=null,ytPlayerReady=false;
+let bgmVol=(()=>{const raw=localStorage.getItem('BGM_VOL');if(raw===null)return 50;const v=+raw;return isFinite(v)&&v>=0&&v<=100?v:50})();
+let bgmMuted=localStorage.getItem('BGM_MUTED')==null?true:localStorage.getItem('BGM_MUTED')==='1';
+function ensureYtApi(cb){if(window.YT&&window.YT.Player){cb();return}
+ytApiQueue.push(cb);if(window.__ytApiLoading)return;window.__ytApiLoading=true;
+const tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';document.head.appendChild(tag);
+window.onYouTubeIframeAPIReady=()=>{ytApiQueue.forEach(f=>f());ytApiQueue=[]}}
+function currentBgmCase(){if(S.pg!=='inv'||!S.invOpen||!D||!D.inv)return null;return D.inv.cases.find(x=>x.id===S.invOpen)||null}
+function syncBgm(){const c=currentBgmCase();const bgm=c&&c.bgm;
+if(!bgm||!bgm.videoId){if(ytPlayer&&ytPlayerReady&&ytPlayerVideoId){try{ytPlayer.stopVideo()}catch(x){}ytPlayerVideoId=null}return}
+ensureYtApi(()=>{
+if(!ytPlayer){ytPlayer=new YT.Player('ytbgmplayer',{height:'1',width:'1',videoId:bgm.videoId,playerVars:{autoplay:0,controls:0,disablekb:1,modestbranding:1,playsinline:1},
+events:{onReady:()=>{ytPlayerReady=true;ytPlayer.setVolume(bgmVol);if(bgmMuted)ytPlayer.mute();else ytPlayer.unMute();applyBgmState()}}});
+return}
+if(ytPlayerReady)applyBgmState()})}
+function applyBgmState(){const c=currentBgmCase();const bgm=c&&c.bgm;if(!ytPlayer||!ytPlayerReady||!bgm||!bgm.videoId)return;
+const pos=(bgm.pos||0)+(bgm.playing?(Date.now()-bgm.posAt)/1000:0);
+if(ytPlayerVideoId!==bgm.videoId){ytPlayerVideoId=bgm.videoId;
+if(bgm.playing)ytPlayer.loadVideoById({videoId:bgm.videoId,startSeconds:Math.max(0,pos)});
+else ytPlayer.cueVideoById({videoId:bgm.videoId,startSeconds:Math.max(0,pos)});
+return}
+const state=ytPlayer.getPlayerState();
+if(bgm.playing){if(state!==1){try{ytPlayer.seekTo(Math.max(0,pos),true)}catch(x){}ytPlayer.playVideo()}}
+else{if(state===1||state===3){ytPlayer.pauseVideo()}}}
+function bgmSetVolume(v){bgmVol=+v;try{localStorage.setItem('BGM_VOL',bgmVol)}catch(x){}
+if(ytPlayer&&ytPlayerReady)ytPlayer.setVolume(bgmVol)}
+function bgmToggleMute(){bgmMuted=!bgmMuted;try{localStorage.setItem('BGM_MUTED',bgmMuted?'1':'0')}catch(x){}
+if(ytPlayer&&ytPlayerReady){if(bgmMuted)ytPlayer.mute();else{ytPlayer.unMute();applyBgmState()}}R()}
 const STATN={str:'근력',dex:'민첩',int:'지식',luk:'행운',men:'정신력'};
 const diceTier=t=>t>=12?{n:'대성공',c:'b-ok'}:t>=10?{n:'극단적 성공',c:'b-ok'}:t>=7?{n:'보통 성공',c:'b-wt'}:t<=2?{n:'대실패',c:'b-no'}:{n:'실패',c:'b-no'};
 const badge=st=>`<span class="badge ${st==='승인'?'b-ok':st==='반려'?'b-no':'b-wt'}">${e(st)}</span>`;
@@ -367,7 +405,7 @@ Object.keys(drafts).forEach(id=>{const el=document.getElementById(id);if(el&&!el
 const cm=$('#cmsgs');if(cm)cm.scrollTop=cm.scrollHeight;
 const il=$('#ivlog');if(il)il.scrollTop=il.scrollHeight;
 if(afId){const el=document.getElementById(afId);if(el&&typeof el.focus==='function'){el.focus();if(afSel&&typeof el.setSelectionRange==='function'){try{el.setSelectionRange(afSel[0],afSel[1])}catch(x){}}}}
-window.scrollTo(scrollX,scrollY)}
+window.scrollTo(scrollX,scrollY);syncBgm()}
 let clkT;function tick(){clearInterval(clkT);const d=$('#clk');if(!d)return;const f=()=>{const n=new Date();d.textContent=`${n.getFullYear()}.${p2(n.getMonth()+1)}.${p2(n.getDate())} ${p2(n.getHours())}:${p2(n.getMinutes())}:${p2(n.getSeconds())}`};f();clkT=setInterval(f,1000)}
 const P={};
 P.notices=()=>{const A=adm(),uid=S.uid;const ns=[...D.notices].sort((a,b)=>b.d.localeCompare(a.d));const latest=ns[0];
@@ -679,8 +717,22 @@ const diceBox=(isP&&active)?`<div style="margin-top:10px;padding-top:10px;border
 const canChat=(isP||A)&&active;
 const chatBox=canChat?`<div style="display:flex;gap:8px;margin-top:4px"><input id="iv_chat" placeholder="채팅 입력 후 Enter" oninput="drafts['iv_chat']=this.value" onkeydown="if(event.key==='Enter'){postChat(${c.id});event.preventDefault()}"><button class="btn" onclick="postChat(${c.id})">전송</button></div>${isP?diceBox:''}`:(active?empty('참가 신청 후 채팅·투표·주사위에 참여할 수 있습니다. (관전은 자유롭게 가능합니다)'):'');
 const adminTools=A?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn" onclick="toggleCaseStatus(${c.id})">${active?'시나리오 종료':'시나리오 재개'}</button><button class="btn" onclick="branchCase(${c.id})">분기 생성</button><button class="btn dg" onclick="deleteCase(${c.id})">삭제</button></div>`:'';
+const hasBgm=!!(c.bgm&&c.bgm.videoId);
+const bgmAdmin=A?`<div style="margin:10px 0;padding:10px;border:1px dashed var(--ln);border-radius:8px">
+<div class="mu" style="font-size:12px;margin-bottom:6px">관리자 전용 - 배경음악(BGM), 유튜브 링크</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<input id="bgm_url" placeholder="https://www.youtube.com/watch?v=... 또는 https://youtu.be/..." style="flex:1;min-width:220px">
+<button type="button" class="btn" onclick="bgmSetTrack(${c.id})">${hasBgm?'곡 변경':'브금 넣기'}</button>
+${hasBgm?`<button type="button" class="btn" onclick="${c.bgm.playing?'bgmPause':'bgmPlay'}(${c.id})">${c.bgm.playing?'일시정지':'재생'}</button><button type="button" class="btn dg" onclick="bgmStop(${c.id})">끄기</button>`:''}
+</div></div>`:'';
+const bgmBox=hasBgm?`<div style="margin:10px 0;padding:10px;border:1px solid var(--ln);border-radius:8px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+<span style="font-size:13px">🎵 BGM ${c.bgm.playing?'재생 중':'일시정지'}</span>
+<label style="display:flex;align-items:center;gap:6px;font-size:12px">음량 <input type="range" min="0" max="100" value="${bgmVol}" oninput="bgmSetVolume(this.value)" style="width:110px"></label>
+<button type="button" class="btn" onclick="bgmToggleMute()">${bgmMuted?'🔇 음소거 (클릭해서 켜기)':'🔊 켜짐 (클릭해서 끄기)'}</button>
+<span class="mu" style="font-size:11px">소리가 안 들리면 음소거 버튼을 한 번 눌러주세요 (브라우저 자동재생 제한)</span>
+</div>`:'';
 const adminPanel=(A&&active)?card('진행 서술 작성',`<textarea id="iv_narr" placeholder="서술 내용을 입력하세요" oninput="drafts['iv_narr']=this.value"></textarea>${fld('iv_opts','선택지 (쉼표로 구분, 비우면 선택지 없는 서술로 등록)','text','oninput="drafts[\'iv_opts\']=this.value"')}<button class="pri" onclick="postNarr(${c.id})">등록</button>`):'';
-return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,`<button class="btn" style="margin-bottom:14px" onclick="S.invOpen=null;R()">목록으로</button>`+parentLink+childLinks+`<div class="mu" style="margin-bottom:10px">참가 인원 ${filled} / ${c.slotCount}</div><div class="grid" style="margin-bottom:16px">${slotsHtml}</div>`+adminTools+`<div class="invlog" id="ivlog">${logHtml}</div>`+chatBox)+adminPanel}
+return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,`<button class="btn" style="margin-bottom:14px" onclick="S.invOpen=null;R()">목록으로</button>`+bgmAdmin+bgmBox+parentLink+childLinks+`<div class="mu" style="margin-bottom:10px">참가 인원 ${filled} / ${c.slotCount}</div><div class="grid" style="margin-bottom:16px">${slotsHtml}</div>`+adminTools+`<div class="invlog" id="ivlog">${logHtml}</div>`+chatBox)+adminPanel}
 function claimSlot(caseId,idx){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active')return alert('종료된 시나리오입니다.');
 if(c.slots.includes(S.uid))return alert('이미 참가 중인 시나리오입니다.');if(c.slots[idx])return alert('이미 선점된 자리입니다.');
 c.slots[idx]=S.uid;save();R()}
@@ -778,6 +830,7 @@ ${fld('cp_speed','반복 속도 (초)','number',`value="${p.speed||2}" min="0.5"
 <label style="margin-top:12px;display:block">글꼴</label><select id="cp_font">${CORRUPT_FONT_PRESETS.map(f=>`<option value="${f.key}" ${f.key===fontKey?'selected':''}>${f.label}</option>`).join('')}</select>
 <div class="mu" style="font-size:11px;margin:6px 0 10px">"직접 입력..."을 선택한 경우에만 아래 항목이 사용됩니다. <b>폰트 파일 업로드</b> 또는 <b>웹폰트 링크</b> 중 하나만 채우면 됩니다 (둘 다 채우면 업로드한 파일이 우선 적용).</div>
 ${fld('cp_customfamily','글꼴 이름 (CSS font-family 값)','text',`value="${e(fontKey==='custom'?(p.fontFamily||''):'')}" placeholder="예: 'Nanum Gothic',sans-serif"`)}
+<div class="mu" style="font-size:11px;margin-top:2px">웹폰트 링크(URL)로 적용할 경우, 눈누에 적힌 한글 폰트 이름이 아니라 해당 폰트의 <b>@font-face 코드에 적힌 영문 font-family 값</b>을 그대로 넣어야 합니다. (예: "학교안심 둥근미소" → <code>'SchoolSafetyRoundedSmile',sans-serif</code>) 눈누 폰트 페이지의 "웹폰트로 사용하기" 코드에서 <code>font-family:</code> 뒤에 적힌 값을 확인하세요.</div>
 <label style="margin-top:10px;display:block">폰트 파일 업로드 (눈누 등에서 받은 .woff2/.woff/.ttf/.otf)</label>
 <input type="file" id="cp_fontfile" accept=".woff2,.woff,.ttf,.otf" onchange="handleCorruptFont(event)">
 <div class="mu" style="font-size:11px;margin-top:4px">용량이 작은 <b>.woff2</b> 형식을 권장합니다 (350KB 이하). 사이트 데이터 전체가 하나의 저장 공간(최대 1MB)을 공유하기 때문에, 폰트 파일이 크면 저장에 실패하거나 사이트 동기화가 깨질 수 있습니다.</div>
