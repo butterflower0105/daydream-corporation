@@ -401,10 +401,11 @@ const scrollX=window.scrollX,scrollY=window.scrollY;
 const af=document.activeElement;const afId=(af&&af.id)?af.id:null;
 const afSel=(afId&&(af.tagName==='INPUT'||af.tagName==='TEXTAREA')&&typeof af.selectionStart==='number')?[af.selectionStart,af.selectionEnd]:null;
 const navigated=S.pg!==lastPg;lastPg=S.pg;
+const ivlogSavedScroll=(invLogEl&&invLogCaseId===S.invOpen)?invLogEl.scrollTop:null;
 app.innerHTML=`<header><span style="gap:14px"><span onclick="logoClick()" style="cursor:default;display:flex">${LOGO}</span><b>${e(D.co)}</b><span class="clk" id="clk"></span></span><span><span class="led ${SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':''}" id="led"></span>${e(m.name)}${adm()?MK():''} · 보유 포인트 <span class="pts">${m.pts} P</span><button class="out" onclick="logout()">퇴근</button></span></header><div id="bd"><nav>${ms.map(x=>`${x.k==='inv'?'<div class="nav-sep"></div>':''}<a class="${x.k===S.pg?'on':''}" onclick="go('${x.k}')">${ICON[x.k]||''}${e(x.n)}${navDot(x.k,S.uid)?'<span class="dot"></span>':''}</a>`).join('')}<div class="syn" id="syncbadge">${SYNC==='local'?'서버 연결 실패 — 이 기기에만 저장됩니다':''}</div></nav><main${navigated?' class="fadein"':''}>${tabsH()}${P[S.pg]()}</main></div>`;tick();
 Object.keys(drafts).forEach(id=>{const el=document.getElementById(id);if(el&&!el.value)el.value=drafts[id]});
 const cm=$('#cmsgs');if(cm)cm.scrollTop=cm.scrollHeight;
-const il=$('#ivlog');if(il)il.scrollTop=il.scrollHeight;
+syncInvLog((S.pg==='inv'&&S.invOpen)?D.inv.cases.find(x=>x.id===S.invOpen):null,ivlogSavedScroll);
 if(afId){const el=document.getElementById(afId);if(el&&typeof el.focus==='function'){el.focus();if(afSel&&typeof el.setSelectionRange==='function'){try{el.setSelectionRange(afSel[0],afSel[1])}catch(x){}}}}
 window.scrollTo(scrollX,scrollY);syncBgm()}
 let clkT;function tick(){clearInterval(clkT);const d=$('#clk');if(!d)return;const f=()=>{const n=new Date();d.textContent=`${n.getFullYear()}.${p2(n.getMonth()+1)}.${p2(n.getDate())} ${p2(n.getHours())}:${p2(n.getMinutes())}:${p2(n.getSeconds())}`};f();clkT=setInterval(f,1000)}
@@ -689,18 +690,43 @@ const id=nx(D.inv.cases);
 D.inv.cases.push({id,title:t,status:'active',slotCount:sc,slots:Array(sc).fill(null),log:intro?[{id:1,type:'narr',text:intro,d:now()}]:[],parentId:null,seenAt:{},d:now()});
 D.inv.slotCount=sc;save();S.tab='';S.invOpen=id;R()}
 function openInv(id){const c=D.inv.cases.find(x=>x.id===id);if(!c)return;S.invOpen=id;S.tab='';markCaseSeenL(c);R()}
-function invCaseView(c){const A=adm(),uid=S.uid,isP=c.slots.includes(uid),filled=c.slots.filter(Boolean).length,active=c.status==='active';
-const slotsHtml=c.slots.map((s,i)=>s?`<div class="prod" style="flex:0 0 150px"><b>${e(nm(s))}</b>${(s===uid||A)?`<div style="margin-top:8px"><button class="btn ${s!==uid?'dg':''}" onclick="releaseSlot(${c.id},${i})">${s===uid?'자리 비우기':'강제 비우기'}</button></div>`:''}</div>`:`<div class="prod" style="flex:0 0 150px"><span class="mu">빈 자리</span>${(!isP&&active)?`<div style="margin-top:8px"><button class="btn" onclick="claimSlot(${c.id},${i})">참가 신청</button></div>`:''}</div>`).join('');
-const logHtml=c.log.length?c.log.map(en=>{
-if(en.type==='chat')return`<div class="ivchat ${en.uid===uid?'me':''}"><b style="font-size:11px;opacity:.7;display:block">${e(nm(en.uid))}</b>${e(en.text)}</div>`;
+function invLogEntryHtml(en,c,uid,isP,active,A){
+if(en.type==='chat')return`<div class="ivchat ${en.uid===uid?'me':''}" data-eid="${en.id}"><b style="font-size:11px;opacity:.7;display:block">${e(nm(en.uid))}</b>${e(en.text)}</div>`;
 if(en.type==='dice'){if(en.mode==='stat'){const tier=diceTier(en.total);
-return`<div class="ivdice">🎲 ${e(nm(en.uid))}님의 ${STATN[en.statKey]||en.statKey} 판정 — 2d6(${en.d1}, ${en.d2}) + ${en.mod} = <b>${en.total}</b> → <span class="badge ${tier.c}">${tier.n}</span></div>`}
-return`<div class="ivdice">🎲 ${e(nm(en.uid))}님의 주사위 (${e(en.notation)}): [${en.rolls.join(', ')}]${en.mod?(en.mod>0?' +'+en.mod:' '+en.mod):''} = <b>${en.total}</b></div>`}
+return`<div class="ivdice" data-eid="${en.id}">🎲 ${e(nm(en.uid))}님의 ${STATN[en.statKey]||en.statKey} 판정 — 2d6(${en.d1}, ${en.d2}) + ${en.mod} = <b>${en.total}</b> → <span class="badge ${tier.c}">${tier.n}</span></div>`}
+return`<div class="ivdice" data-eid="${en.id}">🎲 ${e(nm(en.uid))}님의 주사위 (${e(en.notation)}): [${en.rolls.join(', ')}]${en.mod?(en.mod>0?' +'+en.mod:' '+en.mod):''} = <b>${en.total}</b></div>`}
 if(en.type==='choice'){const tally={};Object.values(en.votes||{}).forEach(o=>tally[o]=(tally[o]||0)+1);
 const opts=en.options.map(o=>{const cnt=tally[o.id]||0,isWin=en.resolved===o.id,canVote=isP&&active&&!en.resolved;
 return`<button class="btn ivopt ${isWin?'win':''}" ${canVote?`onclick="voteChoice(${c.id},${en.id},'${o.id}')"`:'disabled'}>${e(o.label)} (${cnt}표)${isWin?' ✓':''}</button>`}).join('');
-return`<div class="ivchoice">${e(en.text).replace(/\n/g,'<br>')}<div style="margin-top:8px">${opts}</div>${(!en.resolved&&A)?`<div style="margin-top:8px"><button class="btn" onclick="resolveChoiceForce(${c.id},${en.id})">투표 마감(수동)</button></div>`:''}</div>`}
-return`<div class="ivnarr">${e(en.text).replace(/\n/g,'<br>')}</div>`}).join(''):empty('아직 진행 기록이 없습니다.');
+return`<div class="ivchoice" data-eid="${en.id}">${e(en.text).replace(/\n/g,'<br>')}<div style="margin-top:8px">${opts}</div>${(!en.resolved&&A)?`<div style="margin-top:8px"><button class="btn" onclick="resolveChoiceForce(${c.id},${en.id})">투표 마감(수동)</button></div>`:''}</div>`}
+return`<div class="ivnarr" data-eid="${en.id}">${e(en.text).replace(/\n/g,'<br>')}</div>`}
+const invLogChoiceSig=en=>en.type==='choice'?JSON.stringify([en.resolved,en.votes||{}]):null;
+let invLogEl=null,invLogCaseId=null,invLogLastId=0,invLogSig={};
+function syncInvLog(c,savedScrollTop){
+const ph=document.getElementById('ivlog');
+if(!ph||!c){invLogEl=null;invLogCaseId=null;invLogLastId=0;invLogSig={};return}
+const uid=S.uid,A=adm(),isP=c.slots.includes(uid),active=c.status==='active';
+if(!invLogEl||invLogCaseId!==c.id){
+invLogEl=document.createElement('div');invLogEl.className='invlog';invLogEl.id='ivlog';
+invLogCaseId=c.id;invLogLastId=0;invLogSig={};
+if(c.log.length){c.log.forEach(en=>{invLogEl.insertAdjacentHTML('beforeend',invLogEntryHtml(en,c,uid,isP,active,A));invLogLastId=Math.max(invLogLastId,en.id);const sig=invLogChoiceSig(en);if(sig!==null)invLogSig[en.id]=sig})}
+else{invLogEl.innerHTML=empty('아직 진행 기록이 없습니다.')}
+ph.replaceWith(invLogEl);
+invLogEl.scrollTop=invLogEl.scrollHeight;
+return}
+ph.replaceWith(invLogEl);
+if(typeof savedScrollTop==='number')invLogEl.scrollTop=savedScrollTop;
+const wasNearBottom=invLogEl.scrollTop+invLogEl.clientHeight>=invLogEl.scrollHeight-40;
+let appended=false;
+if(c.log.length&&invLogLastId===0&&!invLogEl.querySelector('[data-eid]'))invLogEl.innerHTML='';
+c.log.forEach(en=>{
+if(en.id>invLogLastId){invLogEl.insertAdjacentHTML('beforeend',invLogEntryHtml(en,c,uid,isP,active,A));invLogLastId=Math.max(invLogLastId,en.id);const sig=invLogChoiceSig(en);if(sig!==null)invLogSig[en.id]=sig;appended=true;return}
+const sig=invLogChoiceSig(en);
+if(sig!==null&&invLogSig[en.id]!==sig){const node=invLogEl.querySelector(`[data-eid="${en.id}"]`);if(node)node.outerHTML=invLogEntryHtml(en,c,uid,isP,active,A);invLogSig[en.id]=sig}
+});
+if(appended&&wasNearBottom)invLogEl.scrollTop=invLogEl.scrollHeight}
+function invCaseView(c){const A=adm(),uid=S.uid,isP=c.slots.includes(uid),filled=c.slots.filter(Boolean).length,active=c.status==='active';
+const slotsHtml=c.slots.map((s,i)=>s?`<div class="prod" style="flex:0 0 150px"><b>${e(nm(s))}</b>${(s===uid||A)?`<div style="margin-top:8px"><button class="btn ${s!==uid?'dg':''}" onclick="releaseSlot(${c.id},${i})">${s===uid?'자리 비우기':'강제 비우기'}</button></div>`:''}</div>`:`<div class="prod" style="flex:0 0 150px"><span class="mu">빈 자리</span>${(!isP&&active)?`<div style="margin-top:8px"><button class="btn" onclick="claimSlot(${c.id},${i})">참가 신청</button></div>`:''}</div>`).join('');
 const children=D.inv.cases.filter(x=>x.parentId===c.id);
 const parent=c.parentId?D.inv.cases.find(x=>x.id===c.parentId):null;
 const parentLink=parent?`<div class="mu" style="margin-bottom:10px">상위 시나리오: <a onclick="openInv(${parent.id})">${e(parent.title)}</a></div>`:'';
@@ -733,7 +759,7 @@ const bgmBox=hasBgm?`<div style="margin:10px 0;padding:10px;border:1px solid var
 <span class="mu" style="font-size:11px">소리가 안 들리면 음소거 버튼을 한 번 눌러주세요 (브라우저 자동재생 제한)</span>
 </div>`:'';
 const adminPanel=(A&&active)?card('진행 서술 작성',`<textarea id="iv_narr" placeholder="서술 내용을 입력하세요" oninput="drafts['iv_narr']=this.value"></textarea>${fld('iv_opts','선택지 (쉼표로 구분, 비우면 선택지 없는 서술로 등록)','text','oninput="drafts[\'iv_opts\']=this.value"')}<button class="pri" onclick="postNarr(${c.id})">등록</button>`):'';
-return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,`<button class="btn" style="margin-bottom:14px" onclick="S.invOpen=null;R()">목록으로</button>`+bgmAdmin+bgmBox+parentLink+childLinks+`<div class="mu" style="margin-bottom:10px">참가 인원 ${filled} / ${c.slotCount}</div><div class="grid" style="margin-bottom:16px">${slotsHtml}</div>`+adminTools+`<div class="invlog" id="ivlog">${logHtml}</div>`+chatBox)+adminPanel}
+return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,`<button class="btn" style="margin-bottom:14px" onclick="S.invOpen=null;R()">목록으로</button>`+bgmAdmin+bgmBox+parentLink+childLinks+`<div class="mu" style="margin-bottom:10px">참가 인원 ${filled} / ${c.slotCount}</div><div class="grid" style="margin-bottom:16px">${slotsHtml}</div>`+adminTools+`<div class="invlog" id="ivlog"></div>`+chatBox)+adminPanel}
 function claimSlot(caseId,idx){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active')return alert('종료된 시나리오입니다.');
 if(c.slots.includes(S.uid))return alert('이미 참가 중인 시나리오입니다.');if(c.slots[idx])return alert('이미 선점된 자리입니다.');
 c.slots[idx]=S.uid;save();R()}
