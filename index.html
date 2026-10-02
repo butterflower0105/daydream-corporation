@@ -355,8 +355,9 @@ function currentBgmCase(){if(S.pg!=='inv'||!S.invOpen||!D||!D.inv)return null;re
 function syncBgm(){const c=currentBgmCase();const bgm=c&&c.bgm;
 if(!bgm||!bgm.videoId){if(ytPlayer&&ytPlayerReady&&ytPlayerVideoId){try{ytPlayer.stopVideo()}catch(x){}ytPlayerVideoId=null}return}
 ensureYtApi(()=>{
-if(!ytPlayer){ytPlayer=new YT.Player('ytbgmplayer',{height:'1',width:'1',videoId:bgm.videoId,playerVars:{autoplay:0,controls:0,disablekb:1,modestbranding:1,playsinline:1},
-events:{onReady:()=>{ytPlayerReady=true;ytPlayer.setVolume(bgmVol);if(bgmMuted)ytPlayer.mute();else ytPlayer.unMute();applyBgmState()}}});
+if(!ytPlayer){ytPlayer=new YT.Player('ytbgmplayer',{height:'1',width:'1',videoId:bgm.videoId,playerVars:{autoplay:0,controls:0,disablekb:1,modestbranding:1,playsinline:1,loop:1,playlist:bgm.videoId},
+events:{onReady:()=>{ytPlayerReady=true;ytPlayer.setVolume(bgmVol);if(bgmMuted)ytPlayer.mute();else ytPlayer.unMute();applyBgmState()},
+onStateChange:ev=>{if(ev.data===0){const cc=currentBgmCase();if(cc&&cc.bgm&&cc.bgm.playing){try{ytPlayer.seekTo(0,true);ytPlayer.playVideo()}catch(x){}}}}}});
 return}
 if(ytPlayerReady)applyBgmState()})}
 function applyBgmState(){const c=currentBgmCase();const bgm=c&&c.bgm;if(!ytPlayer||!ytPlayerReady||!bgm||!bgm.videoId)return;
