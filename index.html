@@ -246,6 +246,18 @@ SYNC='syncing';
 firebase.firestore().runTransaction(tx=>tx.get(DB).then(doc=>{const latest=(doc.exists&&doc.data())?doc.data():D;mutate(latest);tx.set(DB,latest);return latest}))
 .then(latest=>{D=latest;SYNC='ok';rsync();R()}).catch(()=>{SYNC='err';rsync();R()})}
 function rsync(){const b=document.getElementById('syncbadge'),l=document.getElementById('led');if(b)b.textContent=SYNC==='syncing'?'저장 중…':SYNC==='err'?'저장 실패 – 인터넷 연결을 확인해 주세요.':'';if(l)l.className='led '+(SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':'')}
+const PROTECTED_INPUT_IDS=['iv_chat','iv_narr','iv_opts'];
+let pendingRemoteRender=false;
+function renderOrDefer(){
+const af=document.activeElement;
+if(af&&PROTECTED_INPUT_IDS.includes(af.id)){
+pendingRemoteRender=true;
+if(!af.__prBound){af.__prBound=true;af.addEventListener('blur',function onBlur(){
+af.removeEventListener('blur',onBlur);af.__prBound=false;
+if(pendingRemoteRender){pendingRemoteRender=false;R()}
+})}
+return}
+pendingRemoteRender=false;R()}
 async function boot(){
 try{
   if(typeof firebase==='undefined')throw new Error('firebase sdk not loaded');
@@ -255,7 +267,7 @@ try{
   const snap=await Promise.race([DB.get(),to]);
   if(snap.exists&&snap.data()){D=snap.data();if(migrate(D))save()}else{D=seed();await DB.set(D)}
   SYNC='ok';
-  DB.onSnapshot(s=>{if(s.exists&&s.data()){D=s.data();R()}},()=>{SYNC='err';rsync()});
+  DB.onSnapshot(s=>{if(s.exists&&s.data()){D=s.data();renderOrDefer()}},()=>{SYNC='err';rsync()});
 }catch(x){DB=null;try{D=JSON.parse(localStorage.getItem(K))}catch(y){}D=D||seed();if(migrate(D))save();SYNC='local'}
 try{const su=localStorage.getItem(UK);if(su){const u=D.users.find(x=>x.id===su);if(u&&!u.off)S.uid=su}}catch(x){}
 R();
