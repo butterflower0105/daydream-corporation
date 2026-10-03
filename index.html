@@ -165,7 +165,7 @@ animation:rainbow-move 3s linear infinite,wig 1.8s ease-in-out infinite;backgrou
 .gm-capsule.pop{animation:gm-pop .4s ease-out forwards}
 @keyframes gm-pop{0%{transform:scale(1);opacity:1}55%{transform:scale(1.6);opacity:1}100%{transform:scale(2);opacity:0}}
 @media(max-width:700px){#bd{flex-direction:column}nav{width:auto;display:flex;overflow-x:auto;padding:8px}nav a{white-space:nowrap}main{padding:16px}.side{flex-basis:100%}}
-</style></head><body><div id="app"></div><div id="ytbgmhost" style="position:fixed;left:-9999px;top:-9999px;width:2px;height:2px;overflow:hidden"><div id="ytbgmplayer"></div></div>
+</style></head><body><div id="app"></div><div id="ytbgmhost" style="position:fixed;left:-9999px;top:-9999px;width:2px;height:2px;overflow:hidden"><div id="ytbgmplayer"></div></div><div id="toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1b1d24;color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;z-index:99999;opacity:0;pointer-events:none;transition:opacity .25s ease;box-shadow:0 6px 20px rgba(0,0,0,.35)"></div>
 <script>
 const $=s=>document.querySelector(s),v=i=>$('#'+i).value.trim(),app=$('#app');
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -240,12 +240,14 @@ return ch}
 let D=null,DB=null,SYNC='connecting';
 const firebaseConfig={apiKey:"AIzaSyCDFMpi_y2U-Sf_wwAG1aqD4WPfOSSEAyk",authDomain:"gsgw-82ac2.firebaseapp.com",projectId:"gsgw-82ac2",storageBucket:"gsgw-82ac2.firebasestorage.app",messagingSenderId:"542740660762",appId:"1:542740660762:web:15ae627fd53be497f047a3"};
 const save=()=>{if(DB){SYNC='syncing';DB.set(D).then(()=>{SYNC='ok';rsync()}).catch(()=>{SYNC='err';rsync()})}else{try{localStorage.setItem(K,JSON.stringify(D))}catch(x){}}};
-function saveTx(mutate){
-if(!DB){mutate(D);try{localStorage.setItem(K,JSON.stringify(D))}catch(x){}R();return}
+function saveTx(mutate,onDone){
+if(!DB){mutate(D);try{localStorage.setItem(K,JSON.stringify(D))}catch(x){}if(onDone)onDone(true);R();return}
 SYNC='syncing';
 firebase.firestore().runTransaction(tx=>tx.get(DB).then(doc=>{const latest=(doc.exists&&doc.data())?doc.data():D;mutate(latest);tx.set(DB,latest);return latest}))
-.then(latest=>{D=latest;SYNC='ok';rsync();R()}).catch(()=>{SYNC='err';rsync();R()})}
+.then(latest=>{D=latest;SYNC='ok';rsync();if(onDone)onDone(true);R()}).catch(()=>{SYNC='err';rsync();if(onDone)onDone(false);R()})}
 function rsync(){const b=document.getElementById('syncbadge'),l=document.getElementById('led');if(b)b.textContent=SYNC==='syncing'?'저장 중…':SYNC==='err'?'저장 실패 – 인터넷 연결을 확인해 주세요.':'';if(l)l.className='led '+(SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':'')}
+let toastTimer=null;
+function showToast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.style.opacity='1';clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.style.opacity='0'},1800)}
 const PROTECTED_INPUT_IDS=['iv_chat','iv_narr','iv_opts'];
 let pendingRemoteRender=false;
 function renderOrDefer(){
@@ -586,11 +588,11 @@ return`<div class="two">${card('내 포인트 내역',hist)}<div class="card sid
 function givePt(){if(!need())return;const u=U(v('tg')),a=parseInt(v('am'));if(!u||!a)return alert('대상 사원과 증감액을 입력하세요.');
 if(u.pts+a<0)return alert('차감 후 포인트가 0 미만이 됩니다.');u.pts+=a;D.log.push({u:u.id,a,why:v('rs')||(a>0?'포인트 지급':'포인트 차감'),d:now()});save();R()}
 P.messenger=()=>{const id=S.uid,t=S.tab,tag=m=>m.spam?'<b class="rd">[스팸] </b>':'';
-if(t==='out'){const l=D.msgs.filter(m=>m.from===id).reverse();return card('보낸 쪽지함',l.length?tbl(['받는 사람','제목','일시'],l.map(m=>`<tr><td>${m.to==='*'?'전체':e(nm(m.to))}</td><td class="l"><a onclick="readM(${m.id})">${tag(m)}${e(m.t)}</a></td><td>${fmt(m.d)}</td></tr>`)):empty('보낸 쪽지가 없습니다.'))}
-if(t==='new'){const A=adm();return card('새 쪽지',`<div style="max-width:640px">${A?'<label class="ck"><input type="checkbox" id="mall">전체 발송</label>':''}<label>받는 사람</label><select id="mto"><option value="">선택하십시오</option>${D.users.filter(u=>u.id!==id).map(u=>`<option value="${u.id}">${e(u.name)} (${e(u.dept)})</option>`).join('')}</select>${fld('mt','제목 (필수)')}<label>내용 (필수)</label><textarea id="mb"></textarea>${A?`<label class="ck"><input type="checkbox" id="msp">스팸으로 표시</label><label class="ck"><input type="checkbox" id="mspc">오염된 형태로 발송</label><label>오염 연출</label><select id="mspcp">${corruptPresetOptions(corruptPresets()[0].id)}</select>`:''}<button class="pri" onclick="send()">보내기</button></div>`)}
+if(t==='out'){const l=D.msgs.filter(m=>m.from===id).reverse();const rdStatus=m=>m.to==='*'?`<span class="mu">${(m.readBy||[]).length}명 읽음</span>`:((m.readBy||[]).includes(m.to)?'<span class="badge b-ok">읽음</span>':'<span class="badge b-wt">안읽음</span>');return card('보낸 쪽지함',l.length?tbl(['받는 사람','제목','일시','상태'],l.map(m=>`<tr><td>${m.to==='*'?'전체':e(nm(m.to))}</td><td class="l"><a onclick="readM(${m.id})">${tag(m)}${e(m.t)}</a></td><td>${fmt(m.d)}</td><td>${rdStatus(m)}</td></tr>`)):empty('보낸 쪽지가 없습니다.'))}
+if(t==='new'){const A=adm();return card('새 쪽지',`<div style="max-width:640px">${A?'<label class="ck"><input type="checkbox" id="mall">전체 발송</label>':''}<label>받는 사람</label><select id="mto"><option value="">선택하십시오</option>${D.users.filter(u=>u.id!==id).map(u=>`<option value="${u.id}">${e(u.name)} (${e(u.dept)})</option>`).join('')}</select>${fld('mt','제목 (필수)','text','oninput="drafts[\'mt\']=this.value"')}<label>내용 (필수)</label><textarea id="mb" oninput="drafts['mb']=this.value"></textarea>${A?`<label class="ck"><input type="checkbox" id="msp">스팸으로 표시</label><label class="ck"><input type="checkbox" id="mspc">오염된 형태로 발송</label><label>오염 연출</label><select id="mspcp">${corruptPresetOptions(corruptPresets()[0].id)}</select>`:''}<button class="pri" id="sendBtn" onclick="send()">보내기</button></div>`)}
 const l=D.msgs.filter(m=>readIn(m,id)).reverse();
 return card('받은 쪽지함',l.length?tbl(['보낸 사람','제목','일시'],l.map(m=>`<tr><td>${e(nm(m.from))}</td><td class="l">${(m.readBy||[]).includes(id)?'':'<span class="udot"></span>'}<a onclick="readM(${m.id})">${tag(m)}${e(m.t)}</a></td><td>${fmt(m.d)}</td></tr>`)):empty('쪽지가 없습니다.'))};
-function readM(id){const m=D.msgs.find(x=>x.id===id);if(readIn(m,S.uid)){m.readBy=m.readBy||[];if(!m.readBy.includes(S.uid))m.readBy.push(S.uid);save();R()}
+function readM(id){const m=D.msgs.find(x=>x.id===id);if(readIn(m,S.uid)&&!(m.readBy||[]).includes(S.uid)){saveTx(latest=>{const lm=latest.msgs.find(x=>x.id===id);if(!lm)return;lm.readBy=lm.readBy||[];if(!lm.readBy.includes(S.uid))lm.readBy.push(S.uid)})}
 if(m.corrupted){
 const p=corruptPreset(m.corruptPreset);
 modal('','',`${corruptImgHtml(p)}<div class="corrupt-content"><div class="corrupt" style="font-size:17px;font-weight:700">${m.spam?'[스팸] ':''}${e(m.t)}</div><div class="mu" style="margin:8px 0 14px;font-size:12px">보낸 사람: ${e(nm(m.from))} · ${fmt(m.d)}</div><div class="corrupt" style="white-space:pre-wrap;line-height:1.65">${e(m.b).replace(/\n/g,'<br>')}</div></div>`);
@@ -598,9 +600,17 @@ applyCorruptModal(p);
 }else{
 modal((m.spam?'[스팸] ':'')+m.t,'보낸 사람: '+e(nm(m.from))+' · '+fmt(m.d),e(m.b).replace(/\n/g,'<br>'));
 }}
-function send(){const A=adm(),all=A&&$('#mall').checked,to=all?'*':v('mto'),t=v('mt'),b=v('mb');
+let sending=false;
+function send(){if(sending)return;
+const A=adm(),all=A&&$('#mall').checked,to=all?'*':v('mto'),t=v('mt'),b=v('mb');
 if(!to||!t||!b)return alert('받는 사람, 제목, 내용을 입력하세요.');
-D.msgs.push({id:nx(D.msgs),from:S.uid,to,t,b,spam:A&&$('#msp').checked,corrupted:A&&$('#mspc').checked,corruptPreset:A?+($('#mspcp')?.value||corruptPresets()[0].id):undefined,d:now(),readBy:[]});save();S.tab='out';R()}
+sending=true;const btn=$('#sendBtn');if(btn){btn.disabled=true;btn.textContent='전송 중...'}
+const spam=A&&$('#msp').checked,corrupted=A&&$('#mspc').checked,corruptPreset=A?+($('#mspcp')?.value||corruptPresets()[0].id):undefined;
+saveTx(latest=>{latest.msgs.push({id:nx(latest.msgs),from:S.uid,to,t,b,spam,corrupted,corruptPreset,d:now(),readBy:[]})},ok=>{
+sending=false;
+if(ok){delete drafts['mt'];delete drafts['mb'];showToast('쪽지를 전송했습니다 ✓');S.tab='out'}
+else{alert('전송에 실패했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.')}
+})}
 P.reports=()=>{const A=adm(),uid=S.uid;
 if(S.tab==='new')return card('보고서 제출',`<div style="max-width:640px">${fld('rt','제목 (필수)')}${fld('ra','발생 일시','datetime-local')}${fld('rp','장소')}<label>내용 (필수)</label><textarea id="rb"></textarea><button class="pri" onclick="addR()">제출</button></div>`);
 const l=D.reports.filter(r=>A||r.who===uid);
