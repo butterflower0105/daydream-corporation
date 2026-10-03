@@ -605,11 +605,11 @@ function send(){if(sending)return;
 const A=adm(),all=A&&$('#mall').checked,to=all?'*':v('mto'),t=v('mt'),b=v('mb');
 if(!to||!t||!b)return alert('받는 사람, 제목, 내용을 입력하세요.');
 sending=true;const btn=$('#sendBtn');if(btn){btn.disabled=true;btn.textContent='전송 중...'}
-const spam=A&&$('#msp').checked,corrupted=A&&$('#mspc').checked,corruptPreset=A?+($('#mspcp')?.value||corruptPresets()[0].id):undefined;
+const spam=A&&$('#msp').checked,corrupted=A&&$('#mspc').checked,corruptPreset=A?+($('#mspcp')?.value||corruptPresets()[0].id):null;
 saveTx(latest=>{latest.msgs.push({id:nx(latest.msgs),from:S.uid,to,t,b,spam,corrupted,corruptPreset,d:now(),readBy:[]})},ok=>{
 sending=false;
 if(ok){delete drafts['mt'];delete drafts['mb'];showToast('쪽지를 전송했습니다 ✓');S.tab='out'}
-else{alert('전송에 실패했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.')}
+else{const btn=$('#sendBtn');if(btn){btn.disabled=false;btn.textContent='보내기'}alert('전송에 실패했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.')}
 })}
 P.reports=()=>{const A=adm(),uid=S.uid;
 if(S.tab==='new')return card('보고서 제출',`<div style="max-width:640px">${fld('rt','제목 (필수)')}${fld('ra','발생 일시','datetime-local')}${fld('rp','장소')}<label>내용 (필수)</label><textarea id="rb"></textarea><button class="pri" onclick="addR()">제출</button></div>`);
