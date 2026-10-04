@@ -279,9 +279,17 @@ const today=()=>now().slice(0,10);
 let drafts={};
 let postImgDraft=null;
 let ivImgDraft=null;
+async function compressToBudget(file,budgetBytes){
+const steps=[[1100,1100,0.72],[900,900,0.65],[700,700,0.6],[560,560,0.5],[420,420,0.45]];
+let out=await readImageCompressed(file,steps[0][0],steps[0][1],steps[0][2]);
+for(let i=1;i<steps.length&&out.length>budgetBytes;i++){out=await readImageCompressed(file,steps[i][0],steps[i][1],steps[i][2])}
+return out}
 async function handleIvImg(ev){const f=ev.target.files[0];if(!f)return;
 if(!f.type.startsWith('image/'))return alert('이미지 파일만 첨부할 수 있습니다.');
-try{ivImgDraft=await readImageCompressed(f,1200,1200,0.78);const pv=$('#iv_imgprev');if(pv){pv.src=ivImgDraft;pv.style.display='block'}
+try{
+ivImgDraft=await compressToBudget(f,420000);
+if(ivImgDraft.length>420000)alert('사진 용량이 커서 화질을 많이 낮춰 압축했습니다. (전체 데이터 저장 공간 한도 때문)');
+const pv=$('#iv_imgprev');if(pv){pv.src=ivImgDraft;pv.style.display='block'}
 const rb=$('#iv_imgrm');if(rb)rb.style.display='inline-block'}
 catch(x){alert('이미지를 처리하지 못했습니다.')}}
 function removeIvImg(){ivImgDraft=null;const pv=$('#iv_imgprev');if(pv){pv.src='';pv.style.display='none'}
@@ -824,7 +832,8 @@ function postCutscene(caseId){if(!need())return;const c0=D.inv.cases.find(x=>x.i
 if(!ivImgDraft)return alert('삽입할 사진을 첨부하세요.');
 const img=ivImgDraft,cap=v('iv_imgcap');
 delete drafts['iv_imgcap'];removeIvImg();const ic=$('#iv_imgcap');if(ic)ic.value='';
-saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;const id=nx(c.log);c.log.push({id,type:'img',img,text:cap||'',d:now()})})}
+saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;const id=nx(c.log);c.log.push({id,type:'img',img,text:cap||'',d:now()})},
+ok=>{if(!ok)alert('사진 저장에 실패했습니다. 전체 데이터 저장 공간이 가득 찼거나 네트워크 문제일 수 있습니다. 잠시 후 다시 시도하거나, 사용하지 않는 사진/게시글을 정리한 뒤 다시 시도해주세요.')})}
 function postChat(caseId){const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0||c0.status!=='active'||(!c0.slots.includes(S.uid)&&!adm()))return;
 const inp=$('#iv_chat');const t=(inp?.value||'').trim();if(!t)return;delete drafts['iv_chat'];if(inp)inp.value='';
 saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;c.log.push({id:nx(c.log),type:'chat',uid:S.uid,text:t,d:now()})})}
