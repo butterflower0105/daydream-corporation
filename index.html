@@ -749,8 +749,16 @@ if(sig!==null&&invLogSig[en.id]!==sig){const node=invLogEl.querySelector(`[data-
 });
 if(appended&&wasNearBottom)invLogEl.scrollTop=invLogEl.scrollHeight}
 function invCaseView(c){const A=adm(),uid=S.uid,isP=c.slots.includes(uid),filled=c.slots.filter(Boolean).length,active=c.status==='active';
-const slotsHtml=c.slots.map((s,i)=>s?`<div class="prod" style="flex:0 0 150px"><b>${e(nm(s))}</b>${(s===uid||A)?`<div style="margin-top:8px"><button class="btn ${s!==uid?'dg':''}" onclick="releaseSlot(${c.id},${i})">${s===uid?'자리 비우기':'강제 비우기'}</button></div>`:''}</div>`:`<div class="prod" style="flex:0 0 150px"><span class="mu">빈 자리</span>${(!isP&&active)?`<div style="margin-top:8px"><button class="btn" onclick="claimSlot(${c.id},${i})">참가 신청</button></div>`:''}</div>`).join('');
 const children=D.inv.cases.filter(x=>x.parentId===c.id&&canAccessCase(x));
+const branchTargets=children.filter(ch=>ch.status==='active');
+const slotsHtml=c.slots.map((s,i)=>{
+if(s){
+const sendBox=(A&&branchTargets.length)?`<div style="margin-top:6px;display:flex;gap:4px"><select id="sendsel_${c.id}_${i}" style="flex:1;font-size:11px">${branchTargets.map(ch=>`<option value="${ch.id}">${e(ch.title)}</option>`).join('')}</select><button class="btn" style="flex:none;font-size:11px;padding:4px 6px" onclick="sendToBranchFromSlot(${c.id},${i})">분기로 보내기</button></div>`:'';
+return`<div class="prod" style="flex:0 0 150px"><b>${e(nm(s))}</b>${(s===uid||A)?`<div style="margin-top:8px"><button class="btn ${s!==uid?'dg':''}" onclick="releaseSlot(${c.id},${i})">${s===uid?'자리 비우기':'강제 비우기'}</button></div>`:''}${sendBox}</div>`}
+const eligible=D.users.filter(u=>!u.off&&!c.slots.includes(u.id));
+const assignBox=(A&&eligible.length)?`<div style="margin-top:6px;display:flex;gap:4px"><select id="aslot_${c.id}_${i}" style="flex:1;font-size:11px">${eligible.map(u=>`<option value="${u.id}">${e(u.name)}</option>`).join('')}</select><button class="btn" style="flex:none;font-size:11px;padding:4px 6px" onclick="assignSlot(${c.id},${i})">배정</button></div>`:'';
+return`<div class="prod" style="flex:0 0 150px"><span class="mu">빈 자리</span>${(!isP&&active)?`<div style="margin-top:8px"><button class="btn" onclick="claimSlot(${c.id},${i})">참가 신청</button></div>`:''}${assignBox}</div>`
+}).join('');
 const parent=c.parentId?D.inv.cases.find(x=>x.id===c.parentId):null;
 const parentLink=(parent&&canAccessCase(parent))?`<div class="mu" style="margin-bottom:10px">상위 시나리오: <a onclick="openInv(${parent.id})">${e(parent.title)}</a></div>`:'';
 const childLinks=children.length?`<div class="mu" style="margin-bottom:10px">분기: ${children.map(ch=>`<a onclick="openInv(${ch.id})">${e(ch.title)}</a>`).join(', ')}</div>`:'';
@@ -786,6 +794,17 @@ return card(`${e(c.title)}${!active?' <span class="mu">(종료됨)</span>':''}`,
 function claimSlot(caseId,idx){const c=D.inv.cases.find(x=>x.id===caseId);if(!c||c.status!=='active')return alert('종료된 시나리오입니다.');
 if(c.slots.includes(S.uid))return alert('이미 참가 중인 시나리오입니다.');if(c.slots[idx])return alert('이미 선점된 자리입니다.');
 c.slots[idx]=S.uid;save();R()}
+function assignSlot(caseId,idx){if(!need())return;const c=D.inv.cases.find(x=>x.id===caseId);if(!c)return;
+if(c.slots[idx])return alert('이미 선점된 자리입니다.');
+const sel=$('#aslot_'+caseId+'_'+idx);if(!sel||!sel.value)return alert('배정할 사원을 선택하세요.');
+const uid=sel.value;if(c.slots.includes(uid))return alert('이미 참가 중인 사원입니다.');
+c.slots[idx]=uid;save();R()}
+function sendToBranchFromSlot(caseId,idx){if(!need())return;const c=D.inv.cases.find(x=>x.id===caseId);if(!c)return;const uid=c.slots[idx];if(!uid)return;
+const sel=$('#sendsel_'+caseId+'_'+idx);if(!sel||!sel.value)return alert('보낼 분기를 선택하세요.');
+const ch=D.inv.cases.find(x=>x.id===+sel.value);if(!ch)return;
+if(ch.slots.includes(uid))return alert('이미 해당 분기에 참가 중입니다.');
+const cidx=ch.slots.findIndex(s=>!s);if(cidx<0)return alert('분기에 빈 자리가 없습니다. 분기의 참가 정원을 늘려주세요.');
+ch.slots[cidx]=uid;save();R();alert(`${nm(uid)}님을 "${ch.title}" 분기로 보냈습니다.`)}
 function releaseSlot(caseId,idx){const c=D.inv.cases.find(x=>x.id===caseId);if(!c)return;if(c.slots[idx]!==S.uid&&!adm())return;
 c.slots[idx]=null;save();R()}
 function postNarr(caseId){if(!need())return;const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0)return;const t=($('#iv_narr')?.value||'').trim();if(!t)return alert('서술 내용을 입력하세요.');
@@ -817,8 +836,8 @@ function resolveChoiceForce(caseId,entryId){if(!need())return;const c=D.inv.case
 if(!en||en.resolved)return;resolveChoice(en);save();R()}
 function toggleCaseStatus(caseId){if(!need())return;const c=D.inv.cases.find(x=>x.id===caseId);c.status=c.status==='active'?'closed':'active';save();R()}
 function branchCase(parentId){if(!need())return;const p=D.inv.cases.find(x=>x.id===parentId);const t=prompt('분기 시나리오 제목을 입력하세요.');if(!t)return;
-const nc={id:nx(D.inv.cases),title:t,status:'active',slotCount:p.slotCount,slots:[...p.slots],log:[],parentId:p.id,seenAt:{},d:now()};
-D.inv.cases.push(nc);save();S.invOpen=nc.id;R()}
+const nc={id:nx(D.inv.cases),title:t,status:'active',slotCount:p.slotCount,slots:Array(p.slotCount).fill(null),log:[],parentId:p.id,seenAt:{},d:now()};
+D.inv.cases.push(nc);save();S.invOpen=nc.id;R();alert('분기 시나리오가 생성되었습니다. 참가자가 없는 상태이니, 상위 시나리오에서 "분기로 보내기"로 보낼 사원을 지정해주세요.')}
 function deleteCase(id){if(!need()||!confirm('시나리오를 삭제할까요? 하위 분기도 함께 삭제됩니다.'))return;
 const ids=new Set([id]);let ch=true;while(ch){ch=false;D.inv.cases.forEach(c=>{if(c.parentId&&ids.has(c.parentId)&&!ids.has(c.id)){ids.add(c.id);ch=true}})}
 D.inv.cases=D.inv.cases.filter(c=>!ids.has(c.id));if(S.invOpen&&ids.has(S.invOpen))S.invOpen=null;save();R()}
