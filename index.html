@@ -396,7 +396,7 @@ if(k==='messenger')return D.msgs.some(m=>readIn(m,uid)&&!(m.readBy||[]).includes
 if(k==='reports'){const A=adm();return D.reports.some(r=>(A||r.who===uid)&&!seen(r.seenBy,uid))}
 if(k==='counsel'){if(adm())return D.counsel.some(c=>c.unreadAdm);return D.counsel.some(c=>c.uid===uid&&c.unreadEmp)}
 if(k==='board')return D.posts.some(p=>!seenL('posts',p.id));
-if(k==='inv')return (D.inv?.cases||[]).some(c=>c.status==='active'&&c.log.length&&caseSeenId(c.id)<c.log[c.log.length-1].id);
+if(k==='inv')return (D.inv?.cases||[]).some(c=>c.status==='active'&&c.log.length&&caseSeenId(c.id)<c.log[c.log.length-1].id&&canAccessCase(c));
 return false}
 const TABS={shop:[['view','상품 보기'],['craft','장비 제작'],['manage','상품 관리',1],['items','소지품 지급',1],['recipes','제작 레시피',1],['sn','공지 작성',1],['craftsn','제작 공지 작성',1]],messenger:[['in','받은 쪽지함'],['out','보낸 쪽지함'],['new','새 쪽지']],reports:[['list','보고서 목록'],['new','보고서 제출']],admin:[['users','사원 관리'],['an','공지사항 작성'],['corrupt','오염 연출 관리'],['bd','게시판 설정'],['mon','쪽지 모니터링'],['set','사이트 설정']]};
 function tabsH(){const l=(TABS[S.pg]||[]).filter(t=>!t[2]||adm());if(!l.length)return'';if(!l.some(t=>t[0]===S.tab))S.tab=l[0][0];
@@ -696,7 +696,7 @@ p.comments=p.comments||[];p.comments.push({id:nx(p.comments),uid:S.uid,b,d:now()
 function delComment(pid,cid){const p=D.posts.find(x=>x.id===pid);if(!p)return;const c=(p.comments||[]).find(x=>x.id===cid);if(!c)return;
 if(!(adm()||c.uid===S.uid))return alert('권한이 없습니다.');if(!confirm('댓글을 삭제할까요?'))return;
 p.comments=p.comments.filter(x=>x.id!==cid);save();R()}
-P.inv=()=>{if(S.invOpen){const c=D.inv.cases.find(x=>x.id===S.invOpen);if(c)return invCaseView(c);S.invOpen=null}
+P.inv=()=>{if(S.invOpen){const c=D.inv.cases.find(x=>x.id===S.invOpen);if(c&&canAccessCase(c))return invCaseView(c);S.invOpen=null}
 if(S.tab==='new'&&adm())return invNewForm();
 return invList()};
 function invList(){const A=adm();const cs=D.inv.cases.filter(c=>!c.parentId).sort((a,b)=>(a.status===b.status?0:a.status==='active'?-1:1)||b.id-a.id);
@@ -711,7 +711,8 @@ const sc=Math.max(1,+v('ivsc')||D.inv.slotCount||6);const intro=($('#ivintro')?.
 const id=nx(D.inv.cases);
 D.inv.cases.push({id,title:t,status:'active',slotCount:sc,slots:Array(sc).fill(null),log:intro?[{id:1,type:'narr',text:intro,d:now()}]:[],parentId:null,seenAt:{},d:now()});
 D.inv.slotCount=sc;save();S.tab='';S.invOpen=id;R()}
-function openInv(id){const c=D.inv.cases.find(x=>x.id===id);if(!c)return;S.invOpen=id;S.tab='';markCaseSeenL(c);R()}
+function canAccessCase(c){if(!c)return false;if(!c.parentId)return true;return adm()||c.slots.includes(S.uid)}
+function openInv(id){const c=D.inv.cases.find(x=>x.id===id);if(!c)return;if(!canAccessCase(c))return alert('이 분기 시나리오는 참가자만 입장할 수 있습니다.');S.invOpen=id;S.tab='';markCaseSeenL(c);R()}
 function invLogEntryHtml(en,c,uid,isP,active,A){
 if(en.type==='chat')return`<div class="ivchat ${en.uid===uid?'me':''}" data-eid="${en.id}"><b style="font-size:11px;opacity:.7;display:block">${e(nm(en.uid))}</b>${e(en.text)}</div>`;
 if(en.type==='dice'){if(en.mode==='stat'){const tier=diceTier(en.total);
@@ -749,9 +750,9 @@ if(sig!==null&&invLogSig[en.id]!==sig){const node=invLogEl.querySelector(`[data-
 if(appended&&wasNearBottom)invLogEl.scrollTop=invLogEl.scrollHeight}
 function invCaseView(c){const A=adm(),uid=S.uid,isP=c.slots.includes(uid),filled=c.slots.filter(Boolean).length,active=c.status==='active';
 const slotsHtml=c.slots.map((s,i)=>s?`<div class="prod" style="flex:0 0 150px"><b>${e(nm(s))}</b>${(s===uid||A)?`<div style="margin-top:8px"><button class="btn ${s!==uid?'dg':''}" onclick="releaseSlot(${c.id},${i})">${s===uid?'자리 비우기':'강제 비우기'}</button></div>`:''}</div>`:`<div class="prod" style="flex:0 0 150px"><span class="mu">빈 자리</span>${(!isP&&active)?`<div style="margin-top:8px"><button class="btn" onclick="claimSlot(${c.id},${i})">참가 신청</button></div>`:''}</div>`).join('');
-const children=D.inv.cases.filter(x=>x.parentId===c.id);
+const children=D.inv.cases.filter(x=>x.parentId===c.id&&canAccessCase(x));
 const parent=c.parentId?D.inv.cases.find(x=>x.id===c.parentId):null;
-const parentLink=parent?`<div class="mu" style="margin-bottom:10px">상위 시나리오: <a onclick="openInv(${parent.id})">${e(parent.title)}</a></div>`:'';
+const parentLink=(parent&&canAccessCase(parent))?`<div class="mu" style="margin-bottom:10px">상위 시나리오: <a onclick="openInv(${parent.id})">${e(parent.title)}</a></div>`:'';
 const childLinks=children.length?`<div class="mu" style="margin-bottom:10px">분기: ${children.map(ch=>`<a onclick="openInv(${ch.id})">${e(ch.title)}</a>`).join(', ')}</div>`:'';
 const diceBox=(isP&&active)?`<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--ln)">
 <div class="mu" style="margin-bottom:6px;font-size:12px">능력치를 고르고 버튼을 누르면 주사위 2개(2d6)에 능력치를 더해서 결과를 보여줍니다.</div>
