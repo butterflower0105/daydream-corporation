@@ -240,12 +240,58 @@ if(!d.corruptPresets||!d.corruptPresets.length){d.corruptPresets=[{id:1,name:'�
 return ch}
 let D=null,DB=null,SYNC='connecting';
 const firebaseConfig={apiKey:"AIzaSyCDFMpi_y2U-Sf_wwAG1aqD4WPfOSSEAyk",authDomain:"gsgw-82ac2.firebaseapp.com",projectId:"gsgw-82ac2",storageBucket:"gsgw-82ac2.firebasestorage.app",messagingSenderId:"542740660762",appId:"1:542740660762:web:15ae627fd53be497f047a3"};
-const save=()=>{if(DB){SYNC='syncing';DB.set(D).then(()=>{SYNC='ok';rsync()}).catch(()=>{SYNC='err';rsync()})}else{try{localStorage.setItem(K,JSON.stringify(D))}catch(x){}}};
+let lastSyncedD=null;
+function snapshotD(){lastSyncedD=D?JSON.parse(JSON.stringify(D)):null}
+const arrLooksLikeIdObjs=a=>Array.isArray(a)&&a.every(x=>x&&typeof x==='object'&&!Array.isArray(x)&&'id'in x);
+const arrLooksPrimitive=a=>Array.isArray(a)&&a.every(x=>x===null||typeof x!=='object');
+function merge3(base,local,latest,key){
+if(JSON.stringify(local)===JSON.stringify(base))return latest===undefined?local:latest;
+if(local===undefined)return latest;
+if(key==='slots'&&Array.isArray(local)&&Array.isArray(base)&&Array.isArray(latest)){
+const len=Math.max(local.length,base.length,latest.length),result=[];
+for(let i=0;i<len;i++)result[i]=(JSON.stringify(local[i])!==JSON.stringify(base[i]))?local[i]:latest[i];
+return result}
+if(Array.isArray(local)&&Array.isArray(base)&&Array.isArray(latest)){
+if(arrLooksLikeIdObjs(local)&&arrLooksLikeIdObjs(base)&&arrLooksLikeIdObjs(latest)){
+const baseMap=new Map(base.map(x=>[x.id,x])),localMap=new Map(local.map(x=>[x.id,x])),latestMap=new Map(latest.map(x=>[x.id,x]));
+const resultMap=new Map(latestMap);
+baseMap.forEach((_,id)=>{if(!localMap.has(id))resultMap.delete(id)});
+localMap.forEach((litem,id)=>{const bitem=baseMap.get(id);
+if(bitem&&JSON.stringify(bitem)===JSON.stringify(litem))return;
+const latem=latestMap.get(id);
+resultMap.set(id,bitem?merge3(bitem,litem,latem!==undefined?latem:litem):litem)});
+return Array.from(resultMap.values())}
+if(arrLooksPrimitive(local)&&arrLooksPrimitive(base)&&arrLooksPrimitive(latest)){
+const added=local.filter(x=>!base.includes(x)),removed=base.filter(x=>!local.includes(x));
+let result=latest.slice();
+removed.forEach(x=>{const i=result.indexOf(x);if(i>=0)result.splice(i,1)});
+added.forEach(x=>{if(!result.includes(x))result.push(x)});
+return result}
+return local}
+if(local&&typeof local==='object'&&!Array.isArray(local)){
+const b=(base&&typeof base==='object')?base:{},la=(latest&&typeof latest==='object')?latest:{};
+const keys=new Set([...Object.keys(b),...Object.keys(local),...Object.keys(la)]);
+const result={};
+keys.forEach(k=>{result[k]=merge3(b[k],local[k],la[k],k)});
+return result}
+return local}
+const save=()=>{
+if(DB){
+const baseSnap=lastSyncedD,localSnap=D;
+if(!baseSnap){SYNC='syncing';DB.set(localSnap).then(()=>{SYNC='ok';snapshotD();rsync()}).catch(()=>{SYNC='err';rsync()});return}
+SYNC='syncing';
+firebase.firestore().runTransaction(tx=>tx.get(DB).then(doc=>{
+const latest=(doc.exists&&doc.data())?doc.data():localSnap;
+const merged=merge3(baseSnap,localSnap,latest);
+tx.set(DB,merged);
+return merged}))
+.then(merged=>{D=merged;snapshotD();SYNC='ok';rsync();R()}).catch(()=>{SYNC='err';rsync();R()})
+}else{try{localStorage.setItem(K,JSON.stringify(D))}catch(x){}}};
 function saveTx(mutate,onDone){
 if(!DB){mutate(D);try{localStorage.setItem(K,JSON.stringify(D))}catch(x){}if(onDone)onDone(true);R();return}
 SYNC='syncing';
 firebase.firestore().runTransaction(tx=>tx.get(DB).then(doc=>{const latest=(doc.exists&&doc.data())?doc.data():D;mutate(latest);tx.set(DB,latest);return latest}))
-.then(latest=>{D=latest;SYNC='ok';rsync();if(onDone)onDone(true);R()}).catch(()=>{SYNC='err';rsync();if(onDone)onDone(false);R()})}
+.then(latest=>{D=latest;snapshotD();SYNC='ok';rsync();if(onDone)onDone(true);R()}).catch(()=>{SYNC='err';rsync();if(onDone)onDone(false);R()})}
 function rsync(){const b=document.getElementById('syncbadge'),l=document.getElementById('led');if(b)b.textContent=SYNC==='syncing'?'저장 중…':SYNC==='err'?'저장 실패 – 인터넷 연결을 확인해 주세요.':'';if(l)l.className='led '+(SYNC==='syncing'?'sy':SYNC==='err'||SYNC==='local'?'er':'')}
 let toastTimer=null;
 function showToast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.style.opacity='1';clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.style.opacity='0'},1800)}
@@ -268,9 +314,9 @@ try{
   DB=firebase.firestore().collection('intranet').doc('state');
   const to=new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),4000));
   const snap=await Promise.race([DB.get(),to]);
-  if(snap.exists&&snap.data()){D=snap.data();if(migrate(D))save()}else{D=seed();await DB.set(D)}
+  if(snap.exists&&snap.data()){D=snap.data();snapshotD();if(migrate(D))save()}else{D=seed();await DB.set(D);snapshotD()}
   SYNC='ok';
-  DB.onSnapshot(s=>{if(s.exists&&s.data()){D=s.data();renderOrDefer()}},()=>{SYNC='err';rsync()});
+  DB.onSnapshot(s=>{if(s.exists&&s.data()){D=s.data();snapshotD();renderOrDefer()}},()=>{SYNC='err';rsync()});
 }catch(x){DB=null;try{D=JSON.parse(localStorage.getItem(K))}catch(y){}D=D||seed();if(migrate(D))save();SYNC='local'}
 try{const su=localStorage.getItem(UK);if(su){const u=D.users.find(x=>x.id===su);if(u&&!u.off)S.uid=su}}catch(x){}
 R();
@@ -491,7 +537,7 @@ function delSn2(field,id){if(!need()||!confirm('삭제할까요?'))return;D[fiel
 function buy(id){const p=D.prods.find(x=>x.id===id),u=me(),c=u.buys[id]||0;
 if(p.sold)return alert('품절된 상품입니다.');if(p.lim&&c>=p.lim)return alert(`1인당 구매 한도(${p.lim}개)를 초과했습니다.`);
 if(u.pts<p.p)return alert('포인트가 부족합니다.');if(!confirm(`${p.n}을(를) ${p.p} P에 구매할까요?`))return;
-u.pts-=p.p;u.buys[id]=c+1;u.items=u.items||[];u.items.push({id:nx(u.items),name:p.n,desc:p.d,origin:u.id});D.log.push({u:u.id,a:-p.p,why:'복지몰 구매: '+p.n,d:now()});save();R()}
+u.pts-=p.p;u.buys[id]=c+1;u.items=u.items||[];u.items.push({id:nx(u.items),name:p.n,desc:p.d,origin:u.id});D.log.push({id:nx(D.log),u:u.id,a:-p.p,why:'복지몰 구매: '+p.n,d:now()});save();R()}
 let cClicks=0,cTimer=null,cosmicHideToday=false;
 function logoClick(){cClicks++;clearTimeout(cTimer);cTimer=setTimeout(()=>{cClicks=0},1100);
 if(cClicks>=5){cClicks=0;clearTimeout(cTimer);tryCosmic()}}
@@ -505,7 +551,7 @@ function buyC(id){const p=D.cprods.find(x=>x.id===id),u=me();if(!p||!u)return;
 u.cbuys=u.cbuys||{};const c=u.cbuys[id]||0;
 if(p.sold)return alert('품절된 물건입니다.');if(p.lim&&c>=p.lim)return alert(`1인당 거래 한도(${p.lim}개)를 초과했습니다.`);
 if(u.pts<p.p)return alert('포인트가 부족합니다.');if(!confirm(`${p.n}을(를) ${p.p} P에 거래할까요?`))return;
-u.pts-=p.p;u.cbuys[id]=c+1;u.items=u.items||[];u.items.push({id:nx(u.items),name:p.n,desc:p.d,origin:u.id});D.log.push({u:u.id,a:-p.p,why:'우주 쇼핑몰 거래: '+p.n,d:now()});save();document.querySelector('.ov')?.remove();cosmicModal();R()}
+u.pts-=p.p;u.cbuys[id]=c+1;u.items=u.items||[];u.items.push({id:nx(u.items),name:p.n,desc:p.d,origin:u.id});D.log.push({id:nx(D.log),u:u.id,a:-p.p,why:'우주 쇼핑몰 거래: '+p.n,d:now()});save();document.querySelector('.ov')?.remove();cosmicModal();R()}
 function addC(){if(!need())return;const n=$('#ccn').value.trim(),p=+$('#ccp').value;if(!n||!(p>=0)||$('#ccp').value==='')return alert('이름과 가격은 필수입니다.');
 D.cprods.push({id:nx(D.cprods),n,d:$('#ccd').value.trim(),p,lim:+$('#ccl').value||0,sold:0});save();document.querySelector('.ov')?.remove();cosmicModal()}
 function editC(id){if(!need())return;const p=D.cprods.find(x=>x.id===id),n=prompt('물건 이름',p.n);if(!n)return;const d=prompt('설명',p.d);if(d===null)return;const pr=prompt('가격 (P)',p.p);if(pr===null||isNaN(+pr)||pr==='')return;const l=prompt('1인당 거래 한도 (0=무제한)',p.lim||0);if(l===null||isNaN(+l))return;
@@ -543,7 +589,7 @@ m.pts-=cost;
 const newItem={id:nx(m.items),name:outName,desc:outDesc,origin:S.uid};
 if(!rec)newItem.craftedFrom={a:a.name,b:b.name};
 m.items.push(newItem);
-D.log.push({u:m.id,a:-cost,why:`커스텀 장비 제작: ${newItem.name}`,d:now()});
+D.log.push({id:nx(D.log),u:m.id,a:-cost,why:`커스텀 장비 제작: ${newItem.name}`,d:now()});
 if(!rec){D.craftLog=D.craftLog||[];const entry=D.craftLog.find(c=>{const ca=c.a.trim().toLowerCase(),cb=c.b.trim().toLowerCase(),na=a.name.trim().toLowerCase(),nb=b.name.trim().toLowerCase();return(ca===na&&cb===nb)||(ca===nb&&cb===na)});
 if(entry)entry.count=(entry.count||1)+1;else D.craftLog.push({id:nx(D.craftLog),a:a.name,b:b.name,count:1})}
 save();R();
@@ -602,7 +648,7 @@ const hist=`<div class="bal"><span>현재 잔액</span>${m.pts} P</div>`+(mine.l
 if(!adm())return card('내 포인트 내역',hist);
 return`<div class="two">${card('내 포인트 내역',hist)}<div class="card side"><h3>포인트 지급/차감</h3><label>대상 사원</label><select id="tg"><option value="">선택하십시오</option>${D.users.map(u=>`<option value="${u.id}">${e(u.name)} (${u.id})</option>`).join('')}</select>${fld('am','증감액 (P)','number')}<div class="mu">양수는 지급, 음수는 차감입니다.</div>${fld('rs','사유 (선택)')}<button class="pri" onclick="givePt()">처리</button></div></div>`};
 function givePt(){if(!need())return;const u=U(v('tg')),a=parseInt(v('am'));if(!u||!a)return alert('대상 사원과 증감액을 입력하세요.');
-if(u.pts+a<0)return alert('차감 후 포인트가 0 미만이 됩니다.');u.pts+=a;D.log.push({u:u.id,a,why:v('rs')||(a>0?'포인트 지급':'포인트 차감'),d:now()});save();R()}
+if(u.pts+a<0)return alert('차감 후 포인트가 0 미만이 됩니다.');u.pts+=a;D.log.push({id:nx(D.log),u:u.id,a,why:v('rs')||(a>0?'포인트 지급':'포인트 차감'),d:now()});save();R()}
 P.messenger=()=>{const id=S.uid,t=S.tab,tag=m=>m.spam?'<b class="rd">[스팸] </b>':'';
 if(t==='out'){const l=D.msgs.filter(m=>m.from===id).reverse();const rdStatus=m=>m.to==='*'?`<span class="mu">${(m.readBy||[]).length}명 읽음</span>`:((m.readBy||[]).includes(m.to)?'<span class="badge b-ok">읽음</span>':'<span class="badge b-wt">안읽음</span>');return card('보낸 쪽지함',l.length?tbl(['받는 사람','제목','일시','상태'],l.map(m=>`<tr><td>${m.to==='*'?'전체':e(nm(m.to))}</td><td class="l"><a onclick="readM(${m.id})">${tag(m)}${e(m.t)}</a></td><td>${fmt(m.d)}</td><td>${rdStatus(m)}</td></tr>`)):empty('보낸 쪽지가 없습니다.'))}
 if(t==='new'){const A=adm();return card('새 쪽지',`<div style="max-width:640px">${A?'<label class="ck"><input type="checkbox" id="mall">전체 발송</label>':''}<label>받는 사람</label><select id="mto"><option value="">선택하십시오</option>${D.users.filter(u=>u.id!==id).map(u=>`<option value="${u.id}">${e(u.name)} (${e(u.dept)})</option>`).join('')}</select>${fld('mt','제목 (필수)','text','oninput="drafts[\'mt\']=this.value"')}<label>내용 (필수)</label><textarea id="mb" oninput="drafts['mb']=this.value"></textarea>${A?`<label class="ck"><input type="checkbox" id="msp">스팸으로 표시</label><label class="ck"><input type="checkbox" id="mspc">오염된 형태로 발송</label><label>오염 연출</label><select id="mspcp">${corruptPresetOptions(corruptPresets()[0].id)}</select>`:''}<button class="pri" id="sendBtn" onclick="send()">보내기</button></div>`)}
@@ -633,7 +679,10 @@ const l=D.reports.filter(r=>A||r.who===uid);
 return card('보고서 목록',l.length?tbl(['제목','작성자','발생 일시','상태','제출일',...(A?['관리']:[])],l.map(r=>`<tr><td class="l">${seen(r.seenBy,uid)?'':'<span class="udot"></span>'}<a onclick="viewR(${r.id})">${e(r.t)}</a></td><td>${e(nm(r.who))}</td><td>${fmt(r.at)}</td><td>${badge(r.st)}</td><td>${fmt(r.d)}</td>${A?`<td class="nw"><button class="btn" onclick="stR(${r.id},'승인')">승인</button> <button class="btn" onclick="stR(${r.id},'반려')">반려</button> <button class="btn dg" onclick="delR(${r.id})">삭제</button></td>`:''}</tr>`)):empty('제출한 보고서가 없습니다.'))};
 function viewR(id){const r=D.reports.find(x=>x.id===id);markSeen(r,S.uid);save();R();
 modal(r.t,`작성자: ${e(nm(r.who))} · 발생 일시: ${fmt(r.at)}${r.place?' · 장소: '+e(r.place):''} · ${badge(r.st)}`,e(r.body||'(내용 없음)').replace(/\n/g,'<br>'))}
-function addR(){const t=v('rt'),b=v('rb');if(!t||!b)return alert('제목과 내용은 필수입니다.');D.reports.push({id:nx(D.reports),t,who:S.uid,at:v('ra'),place:v('rp'),body:b,st:'대기',d:now(),seenBy:[S.uid]});save();S.tab='list';R()}
+function addR(){const t=v('rt'),b=v('rb');if(!t||!b)return alert('제목과 내용은 필수입니다.');
+const at=v('ra'),place=v('rp'),uid=S.uid;
+saveTx(latest=>{latest.reports.push({id:nx(latest.reports),t,who:uid,at,place,body:b,st:'대기',d:now(),seenBy:[uid]})});
+S.tab='list';R()}
 function stR(id,st){if(!need())return;const r=D.reports.find(x=>x.id===id);r.st=st;r.seenBy=[S.uid];save();R()}
 function delR(id){if(!need()||!confirm('삭제할까요?'))return;D.reports=D.reports.filter(x=>x.id!==id);save();R()}
 P.counsel=()=>{if(adm())return S.cnAdm?snAdminCard('counselSn','상담 공지')+`<button class="btn" style="margin-top:12px" onclick="S.cnAdm=false;R()">목록으로</button>`:counselAdminList();return counselMine()};
@@ -661,7 +710,8 @@ const inputRow=c.ended?`<p class="mu" style="text-align:center;margin-top:10px">
 return `<div class="counsel-wrap" style="${counselVars()}">${c.ended?'<div class="mu" style="text-align:center;font-size:12px;margin-bottom:6px">[상담 종료됨]</div>':''}<div class="counsel-msgs" id="cmsgs">${msgsHtml}</div>${inputRow}</div>`}
 function endCounsel(id){if(!need())return;const c=D.counsel.find(x=>x.id===id);if(!c||c.ended)return;if(!confirm('이 상담을 종료할까요? 종료 후에는 이 방에서 더 이상 대화할 수 없습니다.'))return;c.ended=1;save();R()}
 function startCounsel(){const td=today();if(D.counsel.some(c=>c.uid===S.uid&&c.date===td))return;
-D.counsel.push({id:nx(D.counsel),uid:S.uid,date:td,msgs:[],unreadEmp:0,unreadAdm:1});save();R()}
+const uid=S.uid;
+saveTx(latest=>{if(latest.counsel.some(c=>c.uid===uid&&c.date===td))return;latest.counsel.push({id:nx(latest.counsel),uid,date:td,msgs:[],unreadEmp:0,unreadAdm:1})})}
 function sendCounsel(id,isAdmin){const c0=D.counsel.find(x=>x.id===id);if(!c0||c0.ended)return;
 const val=($('#cinput')?.value||'').trim();if(!val)return;
 delete drafts['cinput'];const ci=$('#cinput');if(ci)ci.value='';
@@ -722,11 +772,13 @@ return}
 }
 }else{imgId=postEditImgId||null}
 }else{imgInline=postImgDraft||null}
-if(editId){const p=D.posts.find(x=>x.id===editId);if(!p)return;
-p.title=t;p.body=b;p.imgId=DB?imgId:null;p.img=DB?null:imgInline;p.edited=1;p.editedAt=now();
+const uid=S.uid;
+if(editId){
+saveTx(latest=>{const p=latest.posts.find(x=>x.id===editId);if(!p)return;
+p.title=t;p.body=b;p.imgId=DB?imgId:null;p.img=DB?null:imgInline;p.edited=1;p.editedAt=now()})
 }else{
-D.posts.push({id:nx(D.posts),boardId:bid,title:t,body:b,imgId:DB?imgId:null,img:DB?null:imgInline,uid:S.uid,d:now(),seenBy:[S.uid],comments:[],likes:[]})}
-postImgDraft=null;postImgChanged=false;postEditImgId=null;save();S.tab='';S.editPost=null;R()}
+saveTx(latest=>{latest.posts.push({id:nx(latest.posts),boardId:bid,title:t,body:b,imgId:DB?imgId:null,img:DB?null:imgInline,uid,d:now(),seenBy:[uid],comments:[],likes:[]})})}
+postImgDraft=null;postImgChanged=false;postEditImgId=null;S.tab='';S.editPost=null;R()}
 function toggleLike(id){const p=D.posts.find(x=>x.id===id);if(!p)return;p.likes=p.likes||[];const i=p.likes.indexOf(S.uid);if(i>=0)p.likes.splice(i,1);else p.likes.push(S.uid);save();R()}
 function delPost(id){const p=D.posts.find(x=>x.id===id);if(!p)return;if(!(adm()||p.uid===S.uid))return alert('권한이 없습니다.');
 if(!confirm('삭제할까요?'))return;D.posts=D.posts.filter(x=>x.id!==id);S.postOpen=null;save();R()}
@@ -734,7 +786,8 @@ function postDetail(p){const can=adm()||p.uid===S.uid,liked=(p.likes||[]).includ
 const cs=(p.comments||[]).map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--ln)"><b>${authorLabel(c.uid)}</b> <span class="mu" style="font-size:11px">${fmt(c.d)}</span>${(adm()||c.uid===S.uid)?` <button class="btn" style="padding:2px 8px;font-size:11px" onclick="delComment(${p.id},${c.id})">삭제</button>`:''}<div style="margin-top:4px;white-space:pre-wrap">${e(c.b)}</div></div>`).join('')||empty('댓글이 없습니다.');
 return card(e(p.title),`<div class="mu" style="font-size:12px">${authorLabel(p.uid)} · ${fmt(p.d)}${p.edited?' · <span class="rd">수정됨</span> ('+fmt(p.editedAt)+')':''}</div><div style="white-space:pre-wrap;line-height:1.65;margin-top:12px">${e(p.body)}</div>${(p.imgId||p.img)?renderPostImgTag(p,'style="max-width:100%;border-radius:12px;margin-top:12px"'):''}<div class="fpost-actions"><button class="flike ${liked?'on':''}" onclick="toggleLike(${p.id})">${liked?'❤':'🤍'} ${(p.likes||[]).length||''}</button></div><div style="margin-top:14px;display:flex;gap:8px">${can?`<button class="btn" onclick="editPostClick(${p.id})">수정</button><button class="btn dg" onclick="delPost(${p.id})">삭제</button>`:''}<button class="btn" onclick="S.postOpen=null;R()">목록으로</button></div><h4 style="margin-top:22px">댓글 (${(p.comments||[]).length})</h4>${cs}<div style="margin-top:10px;display:flex;gap:8px"><input id="cmt_in" style="flex:1" placeholder="댓글을 입력하세요..."><button class="btn" style="flex:none" onclick="addComment(${p.id})">등록</button></div>`)}
 function addComment(pid){const p=D.posts.find(x=>x.id===pid);if(!p)return;const b=($('#cmt_in')?.value||'').trim();if(!b)return;
-p.comments=p.comments||[];p.comments.push({id:nx(p.comments),uid:S.uid,b,d:now()});save();R()}
+const uid=S.uid;
+saveTx(latest=>{const lp=latest.posts.find(x=>x.id===pid);if(!lp)return;lp.comments=lp.comments||[];lp.comments.push({id:nx(lp.comments),uid,b,d:now()})})}
 function delComment(pid,cid){const p=D.posts.find(x=>x.id===pid);if(!p)return;const c=(p.comments||[]).find(x=>x.id===cid);if(!c)return;
 if(!(adm()||c.uid===S.uid))return alert('권한이 없습니다.');if(!confirm('댓글을 삭제할까요?'))return;
 p.comments=p.comments.filter(x=>x.id!==cid);save();R()}
