@@ -121,6 +121,7 @@ animation:rainbow-move 3s linear infinite,wig 1.8s ease-in-out infinite;backgrou
 .flike:hover,.fcmt:hover{background:var(--ac)}
 .flike.on{color:var(--rd)}
 .invlog{display:flex;flex-direction:column;gap:10px;max-height:460px;overflow-y:auto;padding:4px 2px;margin-bottom:14px}
+.invlog>*{flex-shrink:0}
 .ivnarr{background:var(--ac);border-radius:12px;padding:12px 14px;line-height:1.6;white-space:pre-wrap}
 .ivchat{padding:8px 12px;border-radius:12px;background:var(--card);border:1px solid var(--ln);max-width:80%;align-self:flex-start}
 .ivchat.me{align-self:flex-end;background:var(--gd);color:#fff;border:0}
@@ -218,7 +219,7 @@ if(!d.boards||!d.boards.length){d.boards=[{id:1,n:'자유게시판'}];ch=true}
 if(d.boardWriteAll===undefined){d.boardWriteAll=0;ch=true}
 if(!d.posts){d.posts=[];ch=true}
 if(d.boardAnon===undefined){d.boardAnon=0;ch=true}
-(d.posts||[]).forEach(p=>{if(!p.comments){p.comments=[];ch=true}if(!p.likes){p.likes=[];ch=true}if(p.img===undefined){p.img=null;ch=true}});
+(d.posts||[]).forEach(p=>{if(!p.comments){p.comments=[];ch=true}if(!p.likes){p.likes=[];ch=true}if(p.img===undefined){p.img=null;ch=true}if(p.imgId===undefined){p.imgId=null;ch=true}});
 if(!d.menus.find(m=>m.k==='board')){const i=d.menus.findIndex(m=>m.k==='counsel');d.menus.splice(i<0?d.menus.length:i,0,{k:'board',n:'게시판',v:1});ch=true}
 if(!d.inv){d.inv={slotCount:6,cases:[]};ch=true}
 if(d.inv.slotCount===undefined){d.inv.slotCount=6;ch=true}
@@ -277,18 +278,17 @@ R();
 const S={uid:null,pg:'notices',tab:'',counselOpen:null,brd:null,postOpen:null,editPost:null,invOpen:null};
 const today=()=>now().slice(0,10);
 let drafts={};
-let postImgDraft=null;
+let postImgDraft=null,postImgChanged=false,postEditImgId=null;
 let ivImgDraft=null;
 async function compressToBudget(file,budgetBytes){
-const steps=[[1100,1100,0.72],[900,900,0.65],[700,700,0.6],[560,560,0.5],[420,420,0.45]];
+const steps=[[1600,1600,0.85],[1300,1300,0.78],[1000,1000,0.7],[800,800,0.6],[600,600,0.5]];
 let out=await readImageCompressed(file,steps[0][0],steps[0][1],steps[0][2]);
 for(let i=1;i<steps.length&&out.length>budgetBytes;i++){out=await readImageCompressed(file,steps[i][0],steps[i][1],steps[i][2])}
 return out}
 async function handleIvImg(ev){const f=ev.target.files[0];if(!f)return;
 if(!f.type.startsWith('image/'))return alert('이미지 파일만 첨부할 수 있습니다.');
 try{
-ivImgDraft=await compressToBudget(f,420000);
-if(ivImgDraft.length>420000)alert('사진 용량이 커서 화질을 많이 낮춰 압축했습니다. (전체 데이터 저장 공간 한도 때문)');
+ivImgDraft=await compressToBudget(f,2500000);
 const pv=$('#iv_imgprev');if(pv){pv.src=ivImgDraft;pv.style.display='block'}
 const rb=$('#iv_imgrm');if(rb)rb.style.display='inline-block'}
 catch(x){alert('이미지를 처리하지 못했습니다.')}}
@@ -306,10 +306,10 @@ img.onerror=reject;img.src=ev.target.result};
 reader.onerror=reject;reader.readAsDataURL(file)})}
 async function handlePostImg(ev){const f=ev.target.files[0];if(!f)return;
 if(!f.type.startsWith('image/'))return alert('이미지 파일만 첨부할 수 있습니다.');
-try{postImgDraft=await readImageCompressed(f);const pv=$('#pf_imgprev');if(pv){pv.src=postImgDraft;pv.style.display='block'}
+try{postImgDraft=await readImageCompressed(f);postImgChanged=true;const pv=$('#pf_imgprev');if(pv){pv.removeAttribute('data-pimgid');pv.src=postImgDraft;pv.style.display='block'}
 const rb=$('#pf_imgrm');if(rb)rb.style.display='inline-block'}
 catch(x){alert('이미지를 처리하지 못했습니다.')}}
-function removePostImg(){postImgDraft=null;const pv=$('#pf_imgprev');if(pv){pv.src='';pv.style.display='none'}
+function removePostImg(){postImgDraft=null;postImgChanged=true;const pv=$('#pf_imgprev');if(pv){pv.removeAttribute('data-pimgid');pv.src='';pv.style.display='none'}
 const inp=$('#pf_img');if(inp)inp.value='';const rb=$('#pf_imgrm');if(rb)rb.style.display='none'}
 const U=id=>D.users.find(u=>u.id===id),me=()=>U(S.uid),adm=()=>{const m=me();return !!m&&m.role!=='user'},nm=id=>U(id)?.name||id;
 const need=()=>adm()||(alert('권한이 없습니다.'),false);
@@ -678,13 +678,16 @@ const boardNav=D.boards.length>1?`<div class="tabs">${D.boards.map(b=>`<button c
 if(S.tab==='new')return boardNav+postForm(S.brd,S.editPost);
 if(S.postOpen){const p=D.posts.find(x=>x.id===S.postOpen);if(p)return boardNav+postDetail(p)}
 return boardNav+noticeBlock('boardSn','게시판 공지')+postList(S.brd)};
-function newPostClick(){S.tab='new';S.editPost=null;postImgDraft=null;R()}
-function editPostClick(id){const p=D.posts.find(x=>x.id===id);S.tab='new';S.editPost=id;postImgDraft=p?p.img||null:null;R()}
+function newPostClick(){S.tab='new';S.editPost=null;postImgDraft=null;postImgChanged=false;postEditImgId=null;R()}
+function editPostClick(id){const p=D.posts.find(x=>x.id===id);S.tab='new';S.editPost=id;postImgChanged=false;
+postEditImgId=p?(p.imgId||null):null;
+postImgDraft=(p&&!postEditImgId)?(p.img||null):null;
+R()}
 function feedCard(p){const liked=(p.likes||[]).includes(S.uid);
 return `<div class="fpost"><div class="fpost-head"><div class="favatar">${e(authorInitial(p.uid))}</div><div><div class="fname">${authorLabel(p.uid)}</div><div class="fdate">${fmt(p.d)}${p.edited?' · 수정됨':''}</div></div></div>
 <div class="fpost-title" onclick="openPost(${p.id})">${e(p.title)}${!seenL('posts',p.id)?' <span class="udot"></span>':''}</div>
 <div class="fpost-body" onclick="openPost(${p.id})">${e(p.body)}</div>
-${p.img?`<img class="fpost-img" src="${p.img}" onclick="openPost(${p.id})">`:''}
+${(p.imgId||p.img)?renderPostImgTag(p,`class="fpost-img" onclick="openPost(${p.id})"`):''}
 <div class="fpost-actions"><button class="flike ${liked?'on':''}" onclick="toggleLike(${p.id})">${liked?'❤':'🤍'} ${(p.likes||[]).length||''}</button><button class="fcmt" onclick="openPost(${p.id})">💬 ${(p.comments||[]).length||''}</button></div></div>`}
 function postList(bid){const canWrite=!!D.boardWriteAll||adm();
 const ps=D.posts.filter(p=>p.boardId===bid).sort((a,b)=>b.d.localeCompare(a.d));
@@ -694,19 +697,42 @@ const feed=ps.length?`<div class="feed">${ps.map(feedCard).join('')}</div>`:empt
 return card(e(bdName(bid)),`<div style="margin-bottom:14px">${writeBtn}${snBtn}</div>${feed}`)}
 function openPost(id){const p=D.posts.find(x=>x.id===id);markSeenL('posts',id);S.postOpen=id;R()}
 function postForm(bid,editId){const p=editId?D.posts.find(x=>x.id===editId):null;
-return card(p?'게시글 수정':'새 글 작성',`<div style="max-width:560px">${fld('pf_t','제목 (필수)','text',p?`value="${e(p.title)}"`:'')}<label>내용 (필수)</label><textarea id="pf_b">${p?e(p.body):''}</textarea><label>사진 첨부 (선택)</label><input type="file" id="pf_img" accept="image/*" onchange="handlePostImg(event)"><img id="pf_imgprev" src="${postImgDraft||''}" style="max-width:100%;border-radius:10px;margin-top:8px;display:${postImgDraft?'block':'none'}"><button type="button" id="pf_imgrm" class="btn" style="margin-top:6px;display:${postImgDraft?'inline-block':'none'}" onclick="removePostImg()">사진 제거</button><div style="margin-top:14px"><button class="pri" onclick="savePost(${bid},${editId||'null'})">${p?'수정 완료':'등록'}</button> <button class="btn" onclick="S.tab='';R()">취소</button></div></div>`)}
-function savePost(bid,editId){const t=v('pf_t'),b=$('#pf_b').value.trim();if(!t||!b)return alert('제목과 내용은 필수입니다.');
-if(editId){const p=D.posts.find(x=>x.id===editId);if(!p)return;if(!(adm()||p.uid===S.uid))return alert('권한이 없습니다.');
-p.title=t;p.body=b;p.img=postImgDraft||null;p.edited=1;p.editedAt=now();
-}else{if(!(D.boardWriteAll||adm()))return alert('권한이 없습니다.');
-D.posts.push({id:nx(D.posts),boardId:bid,title:t,body:b,img:postImgDraft||null,uid:S.uid,d:now(),seenBy:[S.uid],comments:[],likes:[]})}
-postImgDraft=null;save();S.tab='';S.editPost=null;R()}
+const showPimgId=(!postImgChanged&&postEditImgId)?postEditImgId:'';
+let prevSrc=postImgDraft||'';
+if(!prevSrc&&showPimgId){const cached=postImgCache[showPimgId];prevSrc=(cached&&cached!=='loading'&&cached!=='ERROR')?cached:'';if(!prevSrc)ensurePostImg(showPimgId)}
+const hasPreview=!!(postImgDraft||showPimgId);
+return card(p?'게시글 수정':'새 글 작성',`<div style="max-width:560px">${fld('pf_t','제목 (필수)','text',p?`value="${e(p.title)}"`:'')}<label>내용 (필수)</label><textarea id="pf_b">${p?e(p.body):''}</textarea><label>사진 첨부 (선택)</label><input type="file" id="pf_img" accept="image/*" onchange="handlePostImg(event)"><img id="pf_imgprev" data-pimgid="${showPimgId}" src="${prevSrc}" style="max-width:100%;border-radius:10px;margin-top:8px;display:${hasPreview?'block':'none'}"><button type="button" id="pf_imgrm" class="btn" style="margin-top:6px;display:${hasPreview?'inline-block':'none'}" onclick="removePostImg()">사진 제거</button><div style="margin-top:14px"><button class="pri" onclick="savePost(${bid},${editId||'null'})">${p?'수정 완료':'등록'}</button> <button class="btn" onclick="S.tab='';R()">취소</button></div></div>`)}
+async function savePost(bid,editId){const t=v('pf_t'),b=$('#pf_b').value.trim();if(!t||!b)return alert('제목과 내용은 필수입니다.');
+if(editId&&!(adm()||(D.posts.find(x=>x.id===editId)||{}).uid===S.uid))return alert('권한이 없습니다.');
+if(!editId&&!(D.boardWriteAll||adm()))return alert('권한이 없습니다.');
+let imgId=null,imgInline=null;
+if(DB){
+if(postImgChanged){
+if(postImgDraft){
+imgId='pimg_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+try{
+await withTimeout(postImgDocRef(imgId).set({data:postImgDraft,d:now()}),15000,'img-save-timeout');
+postImgCache[imgId]=postImgDraft;
+}catch(x){
+const msg=(x&&x.message)||String(x);
+alert(msg==='img-save-timeout'
+?'사진 저장이 15초 넘게 응답이 없어 중단했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.'
+:'사진 저장에 실패했습니다.\n(오류: '+msg+')');
+return}
+}
+}else{imgId=postEditImgId||null}
+}else{imgInline=postImgDraft||null}
+if(editId){const p=D.posts.find(x=>x.id===editId);if(!p)return;
+p.title=t;p.body=b;p.imgId=DB?imgId:null;p.img=DB?null:imgInline;p.edited=1;p.editedAt=now();
+}else{
+D.posts.push({id:nx(D.posts),boardId:bid,title:t,body:b,imgId:DB?imgId:null,img:DB?null:imgInline,uid:S.uid,d:now(),seenBy:[S.uid],comments:[],likes:[]})}
+postImgDraft=null;postImgChanged=false;postEditImgId=null;save();S.tab='';S.editPost=null;R()}
 function toggleLike(id){const p=D.posts.find(x=>x.id===id);if(!p)return;p.likes=p.likes||[];const i=p.likes.indexOf(S.uid);if(i>=0)p.likes.splice(i,1);else p.likes.push(S.uid);save();R()}
 function delPost(id){const p=D.posts.find(x=>x.id===id);if(!p)return;if(!(adm()||p.uid===S.uid))return alert('권한이 없습니다.');
 if(!confirm('삭제할까요?'))return;D.posts=D.posts.filter(x=>x.id!==id);S.postOpen=null;save();R()}
 function postDetail(p){const can=adm()||p.uid===S.uid,liked=(p.likes||[]).includes(S.uid);
 const cs=(p.comments||[]).map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--ln)"><b>${authorLabel(c.uid)}</b> <span class="mu" style="font-size:11px">${fmt(c.d)}</span>${(adm()||c.uid===S.uid)?` <button class="btn" style="padding:2px 8px;font-size:11px" onclick="delComment(${p.id},${c.id})">삭제</button>`:''}<div style="margin-top:4px;white-space:pre-wrap">${e(c.b)}</div></div>`).join('')||empty('댓글이 없습니다.');
-return card(e(p.title),`<div class="mu" style="font-size:12px">${authorLabel(p.uid)} · ${fmt(p.d)}${p.edited?' · <span class="rd">수정됨</span> ('+fmt(p.editedAt)+')':''}</div><div style="white-space:pre-wrap;line-height:1.65;margin-top:12px">${e(p.body)}</div>${p.img?`<img src="${p.img}" style="max-width:100%;border-radius:12px;margin-top:12px">`:''}<div class="fpost-actions"><button class="flike ${liked?'on':''}" onclick="toggleLike(${p.id})">${liked?'❤':'🤍'} ${(p.likes||[]).length||''}</button></div><div style="margin-top:14px;display:flex;gap:8px">${can?`<button class="btn" onclick="editPostClick(${p.id})">수정</button><button class="btn dg" onclick="delPost(${p.id})">삭제</button>`:''}<button class="btn" onclick="S.postOpen=null;R()">목록으로</button></div><h4 style="margin-top:22px">댓글 (${(p.comments||[]).length})</h4>${cs}<div style="margin-top:10px;display:flex;gap:8px"><input id="cmt_in" style="flex:1" placeholder="댓글을 입력하세요..."><button class="btn" style="flex:none" onclick="addComment(${p.id})">등록</button></div>`)}
+return card(e(p.title),`<div class="mu" style="font-size:12px">${authorLabel(p.uid)} · ${fmt(p.d)}${p.edited?' · <span class="rd">수정됨</span> ('+fmt(p.editedAt)+')':''}</div><div style="white-space:pre-wrap;line-height:1.65;margin-top:12px">${e(p.body)}</div>${(p.imgId||p.img)?renderPostImgTag(p,'style="max-width:100%;border-radius:12px;margin-top:12px"'):''}<div class="fpost-actions"><button class="flike ${liked?'on':''}" onclick="toggleLike(${p.id})">${liked?'❤':'🤍'} ${(p.likes||[]).length||''}</button></div><div style="margin-top:14px;display:flex;gap:8px">${can?`<button class="btn" onclick="editPostClick(${p.id})">수정</button><button class="btn dg" onclick="delPost(${p.id})">삭제</button>`:''}<button class="btn" onclick="S.postOpen=null;R()">목록으로</button></div><h4 style="margin-top:22px">댓글 (${(p.comments||[]).length})</h4>${cs}<div style="margin-top:10px;display:flex;gap:8px"><input id="cmt_in" style="flex:1" placeholder="댓글을 입력하세요..."><button class="btn" style="flex:none" onclick="addComment(${p.id})">등록</button></div>`)}
 function addComment(pid){const p=D.posts.find(x=>x.id===pid);if(!p)return;const b=($('#cmt_in')?.value||'').trim();if(!b)return;
 p.comments=p.comments||[];p.comments.push({id:nx(p.comments),uid:S.uid,b,d:now()});save();R()}
 function delComment(pid,cid){const p=D.posts.find(x=>x.id===pid);if(!p)return;const c=(p.comments||[]).find(x=>x.id===cid);if(!c)return;
@@ -730,7 +756,13 @@ D.inv.slotCount=sc;save();S.tab='';S.invOpen=id;R()}
 function canAccessCase(c){if(!c)return false;if(!c.parentId)return true;return adm()||c.slots.includes(S.uid)}
 function openInv(id){const c=D.inv.cases.find(x=>x.id===id);if(!c)return;if(!canAccessCase(c))return alert('이 분기 시나리오는 참가자만 입장할 수 있습니다.');S.invOpen=id;S.tab='';markCaseSeenL(c);R()}
 function invLogEntryHtml(en,c,uid,isP,active,A){
-if(en.type==='img')return`<div class="ivcut" data-eid="${en.id}" style="margin:14px 0;background:#0b0b0f;border-radius:12px;overflow:hidden;border:1px solid var(--ln)"><img src="${en.img}" style="display:block;width:100%;max-height:420px;object-fit:cover"loading="lazy">${en.text?`<div style="padding:10px 14px;color:#f2f2f2;background:#0b0b0f;font-size:13px;letter-spacing:.02em;text-align:center">${e(en.text).replace(/\n/g,'<br>')}</div>`:''}</div>`;
+if(en.type==='img'){
+let src=en.img||'';
+if(en.imgId){const cached=cutsceneImgCache[en.imgId];src=(cached&&cached!=='loading'&&cached!=='ERROR')?cached:'';ensureCutsceneImg(en.imgId)}
+const imgTag=src
+?`<img data-imgid="${en.imgId||''}" src="${src}" style="display:block;width:100%;max-height:560px;object-fit:contain;background:#0b0b0f" loading="lazy">`
+:`<img data-imgid="${en.imgId||''}" style="display:block;width:100%;height:160px;object-fit:cover;background:#15151b" alt="사진 불러오는 중…">`;
+return`<div class="ivcut" data-eid="${en.id}" style="margin:14px 0;background:#0b0b0f;border-radius:12px;overflow:hidden;border:1px solid var(--ln)">${imgTag}${en.text?`<div style="padding:10px 14px;color:#f2f2f2;background:#0b0b0f;font-size:13px;letter-spacing:.02em;text-align:center">${e(en.text).replace(/\n/g,'<br>')}</div>`:''}</div>`}
 if(en.type==='chat')return`<div class="ivchat ${en.uid===uid?'me':''}" data-eid="${en.id}"><b style="font-size:11px;opacity:.7;display:block">${e(nm(en.uid))}</b>${e(en.text)}</div>`;
 if(en.type==='dice'){if(en.mode==='stat'){const tier=diceTier(en.total);
 return`<div class="ivdice" data-eid="${en.id}">🎲 ${e(nm(en.uid))}님의 ${STATN[en.statKey]||en.statKey} 판정 — 2d6(${en.d1}, ${en.d2}) + ${en.mod} = <b>${en.total}</b> → <span class="badge ${tier.c}">${tier.n}</span></div>`}
@@ -828,12 +860,57 @@ function postNarr(caseId){if(!need())return;const c0=D.inv.cases.find(x=>x.id===
 const optsRaw=v('iv_opts');const opts=optsRaw?optsRaw.split(',').map(s=>s.trim()).filter(Boolean).map((label,i)=>({id:String.fromCharCode(97+i),label})):[];
 delete drafts['iv_narr'];delete drafts['iv_opts'];const na=$('#iv_narr'),no=$('#iv_opts');if(na)na.value='';if(no)no.value='';
 saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;const id=nx(c.log);c.log.push(opts.length?{id,type:'choice',text:t,options:opts,votes:{},resolved:null,d:now()}:{id,type:'narr',text:t,d:now()})})}
-function postCutscene(caseId){if(!need())return;const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0)return;
+function withTimeout(promise,ms,label){
+return Promise.race([promise,new Promise((_,rej)=>setTimeout(()=>rej(new Error(label||'timeout')),ms))])}
+const cutsceneImgCache={};
+function cutsceneImgDocRef(imgId){return firebase.firestore().collection('cutsceneImages').doc(imgId)}
+function ensureCutsceneImg(imgId){
+if(!imgId||cutsceneImgCache[imgId])return;
+if(!DB){cutsceneImgCache[imgId]='ERROR';return}
+cutsceneImgCache[imgId]='loading';
+withTimeout(cutsceneImgDocRef(imgId).get(),15000,'img-load-timeout').then(snap=>{
+const d=snap.exists?snap.data():null;
+cutsceneImgCache[imgId]=(d&&d.data)?d.data:'ERROR';
+document.querySelectorAll(`img[data-imgid="${imgId}"]`).forEach(el=>{if(cutsceneImgCache[imgId]!=='ERROR'){el.src=cutsceneImgCache[imgId];el.style.cssText='display:block;width:100%;max-height:560px;object-fit:contain;background:#0b0b0f'}})
+}).catch(()=>{cutsceneImgCache[imgId]='ERROR'})}
+async function postCutscene(caseId){if(!need())return;const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0)return;
 if(!ivImgDraft)return alert('삽입할 사진을 첨부하세요.');
-const img=ivImgDraft,cap=v('iv_imgcap');
+const dataUrl=ivImgDraft,cap=v('iv_imgcap');
 delete drafts['iv_imgcap'];removeIvImg();const ic=$('#iv_imgcap');if(ic)ic.value='';
-saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;const id=nx(c.log);c.log.push({id,type:'img',img,text:cap||'',d:now()})},
-ok=>{if(!ok)alert('사진 저장에 실패했습니다. 전체 데이터 저장 공간이 가득 찼거나 네트워크 문제일 수 있습니다. 잠시 후 다시 시도하거나, 사용하지 않는 사진/게시글을 정리한 뒤 다시 시도해주세요.')})}
+let img=null,imgId=null;
+if(DB){
+imgId='ivimg_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+try{
+await withTimeout(cutsceneImgDocRef(imgId).set({data:dataUrl,caseId,d:now()}),15000,'img-save-timeout');
+cutsceneImgCache[imgId]=dataUrl;
+}catch(x){
+const msg=(x&&x.message)||String(x);
+alert(msg==='img-save-timeout'
+?'사진 저장이 15초 넘게 응답이 없어 중단했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.'
+:'사진 저장에 실패했습니다.\n(오류: '+msg+')');
+return}
+}else{img=dataUrl}
+saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;const id=nx(c.log);c.log.push({id,type:'img',img,imgId,text:cap||'',d:now()})},
+ok=>{if(!ok)alert('사진 기록 저장에 실패했습니다. 잠시 후 다시 시도해주세요.')})}
+const postImgCache={};
+function postImgDocRef(imgId){return firebase.firestore().collection('postImages').doc(imgId)}
+function ensurePostImg(imgId){
+if(!imgId||postImgCache[imgId])return;
+if(!DB){postImgCache[imgId]='ERROR';return}
+postImgCache[imgId]='loading';
+withTimeout(postImgDocRef(imgId).get(),15000,'img-load-timeout').then(snap=>{
+const d=snap.exists?snap.data():null;
+postImgCache[imgId]=(d&&d.data)?d.data:'ERROR';
+if(postImgCache[imgId]!=='ERROR')document.querySelectorAll(`img[data-pimgid="${imgId}"]`).forEach(el=>{el.src=postImgCache[imgId];el.style.display='block'})
+}).catch(()=>{postImgCache[imgId]='ERROR'})}
+function renderPostImgTag(p,attrs){
+if(p.imgId){
+const cached=postImgCache[p.imgId];
+const src=(cached&&cached!=='loading'&&cached!=='ERROR')?cached:'';
+if(!src)ensurePostImg(p.imgId);
+return`<img data-pimgid="${p.imgId}" src="${src}" ${attrs}>`}
+if(p.img)return`<img src="${p.img}" ${attrs}>`;
+return''}
 function postChat(caseId){const c0=D.inv.cases.find(x=>x.id===caseId);if(!c0||c0.status!=='active'||(!c0.slots.includes(S.uid)&&!adm()))return;
 const inp=$('#iv_chat');const t=(inp?.value||'').trim();if(!t)return;delete drafts['iv_chat'];if(inp)inp.value='';
 saveTx(latest=>{const c=latest.inv.cases.find(x=>x.id===caseId);if(!c)return;c.log.push({id:nx(c.log),type:'chat',uid:S.uid,text:t,d:now()})})}
